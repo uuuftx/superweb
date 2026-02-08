@@ -23,14 +23,8 @@ async def workflows_page(request: Request):
 
 @router.get("/workflow-editor", response_class=HTMLResponse)
 async def workflow_editor_page(request: Request):
-    """工作流编辑器（旧版）"""
-    return templates.TemplateResponse("workflow_editor.html", {"request": request})
-
-
-@router.get("/workflow-editor-v2", response_class=HTMLResponse)
-async def workflow_editor_v2_page(request: Request):
-    """工作流可视化编辑器（新版）"""
-    return templates.TemplateResponse("workflow_editor_v2.html", {"request": request})
+    """工作流编辑器 - 代码行号视图"""
+    return templates.TemplateResponse("workflow_code_editor.html", {"request": request})
 
 
 @router.get("/workflow-logs", response_class=HTMLResponse)

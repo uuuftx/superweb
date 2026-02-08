@@ -204,51 +204,50 @@ async def save_workflow_nodes(workflow_id: int, data: WorkflowNodesSave, db: Asy
     """保存工作流的节点和连接"""
     from app.models.workflow import WorkflowNode, WorkflowConnection
 
-    # 删除旧的节点和连接
-    await db.execute(
-        select(WorkflowNode).where(WorkflowNode.workflow_id == workflow_id)
-    )
-    old_nodes = (await db.execute(
-        select(WorkflowNode).where(WorkflowNode.workflow_id == workflow_id)
-    )).scalars().all()
+    try:
+        # 先删除旧的连接（因为有外键约束）
+        old_connections = (await db.execute(
+            select(WorkflowConnection).where(WorkflowConnection.workflow_id == workflow_id)
+        )).scalars().all()
 
-    for node in old_nodes:
-        await db.delete(node)
+        for conn in old_connections:
+            await db.delete(conn)
 
-    await db.execute(
-        select(WorkflowConnection).where(WorkflowConnection.workflow_id == workflow_id)
-    )
-    old_connections = (await db.execute(
-        select(WorkflowConnection).where(WorkflowConnection.workflow_id == workflow_id)
-    )).scalars().all()
+        # 删除旧的节点
+        old_nodes = (await db.execute(
+            select(WorkflowNode).where(WorkflowNode.workflow_id == workflow_id)
+        )).scalars().all()
 
-    for conn in old_connections:
-        await db.delete(conn)
+        for node in old_nodes:
+            await db.delete(node)
 
-    # 创建新节点
-    for node_data in data.nodes:
-        node = WorkflowNode(
-            workflow_id=workflow_id,
-            node_id=node_data["node_id"],
-            node_type=node_data["node_type"],
-            name=node_data["name"],
-            position_x=node_data["position_x"],
-            position_y=node_data["position_y"],
-            config=node_data.get("config", {})
-        )
-        db.add(node)
+        # 创建新节点
+        for node_data in data.nodes:
+            node = WorkflowNode(
+                workflow_id=workflow_id,
+                node_id=node_data["node_id"],
+                node_type=node_data["node_type"],
+                name=node_data["name"],
+                position_x=node_data["position_x"],
+                position_y=node_data["position_y"],
+                config=node_data.get("config", {})
+            )
+            db.add(node)
 
-    # 创建新连接
-    for conn_data in data.connections:
-        conn = WorkflowConnection(
-            workflow_id=workflow_id,
-            source_node=conn_data["source_node"],
-            target_node=conn_data["target_node"]
-        )
-        db.add(conn)
+        # 创建新连接
+        for conn_data in data.connections:
+            conn = WorkflowConnection(
+                workflow_id=workflow_id,
+                source_node=conn_data.get("source_node") or conn_data.get("source"),
+                target_node=conn_data.get("target_node") or conn_data.get("target")
+            )
+            db.add(conn)
 
-    await db.commit()
-    return {"message": "保存成功", "nodes_count": len(data.nodes), "connections_count": len(data.connections)}
+        await db.commit()
+        return {"message": "保存成功", "nodes_count": len(data.nodes), "connections_count": len(data.connections)}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"保存失败: {str(e)}")
 
 
 @router.get("/workflows/{workflow_id}/detail")

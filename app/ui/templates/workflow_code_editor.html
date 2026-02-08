@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作流代码编辑器 - SuperWeb</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 顶部工具栏 */
+        .toolbar {
+            height: 56px;
+            background: rgba(26, 26, 62, 0.95);
+            border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .toolbar-brand {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 32px;
+            background: rgba(102, 126, 234, 0.3);
+        }
+
+        .toolbar button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toolbar button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+        }
+
+        .toolbar button.secondary {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            box-shadow: none;
+        }
+
+        .toolbar button.secondary:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .toolbar button.danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        /* 主容器 */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 56px);
+        }
+
+        /* 左侧节点列表 */
+        .nodes-list-panel {
+            width: 320px;
+            background: rgba(26, 26, 62, 0.95);
+            border-right: 1px solid rgba(102, 126, 234, 0.3);
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .panel-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .panel-btn {
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #667eea;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .panel-btn:hover {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+
+        .nodes-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        /* 节点卡片 */
+        .node-card {
+            background: rgba(31, 31, 64, 0.8);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .node-card:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .node-card.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.15);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .node-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .node-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .node-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .node-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e94560;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .node-meta {
+            font-size: 11px;
+            color: #7c7ca0;
+            margin-top: 2px;
+        }
+
+        .node-arrow {
+            color: #00ff88;
+            font-size: 16px;
+        }
+
+        .node-card-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .node-action-btn {
+            flex: 1;
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #a0a0b8;
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .node-action-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            color: #e0e0e0;
+        }
+
+        /* 右侧编辑区域 */
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(26, 26, 62, 0.95);
+        }
+
+        .editor-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .editor-meta {
+            font-size: 12px;
+            color: #7c7ca0;
+        }
+
+        .editor-toolbar {
+            padding: 10px 20px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .editor-field {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .editor-label {
+            font-size: 12px;
+            color: #7c7ca0;
+            margin-bottom: 4px;
+        }
+
+        .editor-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(31, 31, 64, 0.8);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .editor-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .editor-select {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(31, 31, 64, 0.8);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .editor-content {
+            flex: 1;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .CodeMirror {
+            height: 100%;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            border-radius: 8px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #7c7ca0;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-text {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .empty-hint {
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(26, 26, 62, 0.95);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+            animation: slideIn 0.3s ease-out;
+            z-index: 10000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: #a0a0b8;
+            line-height: 1.5;
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(26, 26, 62, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(102, 126, 234, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部工具栏 -->
+    <div class="toolbar">
+        <div class="toolbar-brand">
+            <span>🔀</span>
+            <span id="workflow-title">工作流代码编辑器</span>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-divider"></div>
+        <button id="toggle-workflow-btn" onclick="toggleWorkflowEnabled()">
+            <span id="workflow-status-icon">🔴</span>
+            <span id="workflow-status-text">已禁用</span>
+        </button>
+
+        <div style="flex: 1;"></div>
+
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="secondary" onclick="viewLogs()">📋 日志</button>
+            <button onclick="saveWorkflow()">💾 保存</button>
+            <button class="secondary" onclick="goBack()">← 返回</button>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 左侧节点列表 -->
+        <div class="nodes-list-panel">
+            <div class="panel-header">
+                <div class="panel-title">📋 节点列表</div>
+                <div class="panel-actions">
+                    <button class="panel-btn" onclick="addNode()">➕ 添加</button>
+                    <button class="panel-btn" onclick="saveWorkflow()">💾 保存</button>
+                </div>
+            </div>
+            <div class="nodes-list" id="nodes-list">
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <div class="empty-text">暂无节点</div>
+                    <div class="empty-hint">点击"添加"按钮创建第一个节点</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧编辑区域 -->
+        <div class="editor-panel" id="editor-panel">
+            <div class="empty-state">
+                <div class="empty-icon">🎯</div>
+                <div class="empty-text">选择一个节点开始编辑</div>
+                <div class="empty-hint">从左侧列表选择节点，或创建新节点</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 全局状态 ==========
+        let currentWorkflow = null;
+        let nodes = [];
+        let selectedNodeId = null;
+        let nextNodeNumber = 1;
+        let codeEditor = null;
+
+        // ========== 初始化 ==========
+        window.onload = async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const workflowId = urlParams.get('workflow');
+
+            if (workflowId) {
+                await loadWorkflowById(workflowId);
+            } else {
+                showToast('错误', '缺少工作流ID参数', 'error');
+                setTimeout(() => goBack(), 1500);
+            }
+        };
+
+        // ========== 节点管理 ==========
+        function addNode() {
+            const nodeNumber = nextNodeNumber++;
+            const nodeId = `node_${nodeNumber}`;
+
+            const node = {
+                id: nodeId,
+                node_number: nodeNumber,
+                name: `节点${nodeNumber}`,
+                description: '',
+                next_node: nodeNumber + 1,
+                code: generateDefaultCode(nodeNumber)
+            };
+
+            nodes.push(node);
+            renderNodesList();
+            selectNode(nodeId);
+            showToast('成功', `节点 #${nodeNumber} 已创建`, 'success');
+        }
+
+        function generateDefaultCode(nodeNumber) {
+            return `# 节点 ${nodeNumber} - Python脚本
+
+# 可用变量:
+# data: 上一个节点传递的数据
+# context: 请求上下文 {path, query, headers, body}
+
+# 处理逻辑
+data = data or {}
+result = {
+    "message": f"节点${nodeNumber}处理完成",
+    "node": ${nodeNumber},
+    "data": data
+}
+
+# 设置下一个节点编号 (0表示结束)
+next_node = ${nodeNumber + 1}`
+        }
+
+        function renderNodesList() {
+            const container = document.getElementById('nodes-list');
+
+            if (nodes.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <div class="empty-text">暂无节点</div>
+                        <div class="empty-hint">点击"添加"按钮创建第一个节点</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // 按编号排序
+            const sortedNodes = [...nodes].sort((a, b) => a.node_number - b.node_number);
+
+            container.innerHTML = sortedNodes.map(node => {
+                const isSelected = node.id === selectedNodeId;
+                const nextNode = nodes.find(n => n.node_number === node.next_node);
+                const hasNext = node.next_node && node.next_node > 0;
+                const isLast = !hasNext || node.next_node === 0;
+
+                return `
+                    <div class="node-card ${isSelected ? 'selected' : ''}" onclick="selectNode('${node.id}')">
+                        <div class="node-card-header">
+                            <div class="node-number">#${node.node_number}</div>
+                            <div class="node-info">
+                                <div class="node-name">${node.name}</div>
+                                <div class="node-meta">
+                                    ${isLast ? '→ 结束' : `→ #${node.next_node} ${nextNode ? nextNode.name : ''}`}
+                                </div>
+                            </div>
+                            ${!isLast ? '<div class="node-arrow">→</div>' : '<div class="node-arrow">⏹</div>'}
+                        </div>
+                        <div class="node-card-actions">
+                            <button class="node-action-btn" onclick="event.stopPropagation(); moveNodeUp('${node.id}')" ${node.node_number === 1 ? 'disabled' : ''}>↑ 上移</button>
+                            <button class="node-action-btn" onclick="event.stopPropagation(); moveNodeDown('${node.id}')" ${node.node_number === nodes.length ? 'disabled' : ''}>↓ 下移</button>
+                            <button class="node-action-btn" onclick="event.stopPropagation(); deleteNode('${node.id}')">🗑 删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectNode(nodeId) {
+            selectedNodeId = nodeId;
+            renderNodesList();
+            showNodeEditor(nodeId);
+        }
+
+        function showNodeEditor(nodeId) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (!node) return;
+
+            const panel = document.getElementById('editor-panel');
+
+            // 创建下一节点选项
+            const nextNodeOptions = nodes.map(n =>
+                `<option value="${n.node_number}" ${n.node_number === node.next_node ? 'selected' : ''}>#${n.node_number} - ${n.name}</option>`
+            ).join('');
+
+            panel.innerHTML = `
+                <div class="editor-header">
+                    <div>
+                        <div class="editor-title">📝 编辑节点 #${node.node_number}</div>
+                        <div class="editor-meta">${node.name}</div>
+                    </div>
+                </div>
+
+                <div class="editor-toolbar">
+                    <div class="editor-field">
+                        <div class="editor-label">节点名称</div>
+                        <input type="text" class="editor-input" id="node-name" value="${node.name}">
+                    </div>
+                    <div class="editor-field">
+                        <div class="editor-label">描述</div>
+                        <input type="text" class="editor-input" id="node-description" value="${node.description || ''}">
+                    </div>
+                    <div class="editor-field">
+                        <div class="editor-label">下一节点 (0表示结束)</div>
+                        <select class="editor-select" id="node-next">
+                            <option value="0" ${node.next_node === 0 ? 'selected' : ''}>0 - 结束流程</option>
+                            ${nextNodeOptions}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="editor-content">
+                    <textarea id="code-editor">${node.code || ''}</textarea>
+                </div>
+            `;
+
+            // 初始化代码编辑器
+            codeEditor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+                mode: 'python',
+                theme: 'monokai',
+                lineNumbers: true,
+                matchBrackets: true,
+                indentUnit: 4,
+                tabSize: 4,
+                indentWithTabs: false,
+            });
+
+            // 绑定事件
+            document.getElementById('node-name').addEventListener('input', (e) => {
+                node.name = e.target.value;
+                renderNodesList();
+            });
+
+            document.getElementById('node-description').addEventListener('input', (e) => {
+                node.description = e.target.value;
+            });
+
+            document.getElementById('node-next').addEventListener('change', (e) => {
+                node.next_node = parseInt(e.target.value);
+                renderNodesList();
+            });
+
+            // 代码变更监听
+            codeEditor.on('change', () => {
+                node.code = codeEditor.getValue();
+            });
+        }
+
+        function moveNodeUp(nodeId) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (!node || node.node_number <= 1) return;
+
+            // 与上一个节点交换编号
+            const prevNode = nodes.find(n => n.node_number === node.node_number - 1);
+            if (prevNode) {
+                const tempNum = node.node_number;
+                node.node_number = prevNode.node_number;
+                prevNode.node_number = tempNum;
+
+                // 更新下一节点引用
+                nodes.forEach(n => {
+                    if (n.next_node === tempNum) n.next_node = node.node_number;
+                    else if (n.next_node === prevNode.node_number) n.next_node = tempNum;
+                });
+
+                renderNodesList();
+                selectNode(nodeId);
+            }
+        }
+
+        function moveNodeDown(nodeId) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (!node || node.node_number >= nodes.length) return;
+
+            // 与下一个节点交换编号
+            const nextNode = nodes.find(n => n.node_number === node.node_number + 1);
+            if (nextNode) {
+                const tempNum = node.node_number;
+                node.node_number = nextNode.node_number;
+                nextNode.node_number = tempNum;
+
+                // 更新下一节点引用
+                nodes.forEach(n => {
+                    if (n.next_node === tempNum) n.next_node = node.node_number;
+                    else if (n.next_node === nextNode.node_number) n.next_node = tempNum;
+                });
+
+                renderNodesList();
+                selectNode(nodeId);
+            }
+        }
+
+        function deleteNode(nodeId) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (!node) return;
+
+            if (!confirm(`确定要删除节点 #${node.node_number} "${node.name}" 吗？`)) return;
+
+            // 删除节点
+            nodes = nodes.filter(n => n.id !== nodeId);
+
+            // 重新编号
+            nodes.sort((a, b) => a.node_number - b.node_number);
+            nodes.forEach((n, index) => {
+                n.node_number = index + 1;
+            });
+
+            // 更新下一节点引用
+            nodes.forEach(n => {
+                if (n.next_node > nodes.length) n.next_node = 0;
+            });
+
+            // 如果删除的是当前选中的节点
+            if (selectedNodeId === nodeId) {
+                selectedNodeId = null;
+                document.getElementById('editor-panel').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <div class="empty-text">选择一个节点开始编辑</div>
+                    </div>
+                `;
+            }
+
+            renderNodesList();
+            showToast('成功', '节点已删除', 'success');
+        }
+
+        // ========== 工作流操作 ==========
+        async function loadWorkflowById(workflowId) {
+            try {
+                const data = await api(`/api/admin/workflows/${workflowId}/detail`);
+                currentWorkflow = data.workflow;
+                document.getElementById('workflow-title').textContent = currentWorkflow.name;
+
+                nodes = data.nodes.map(n => ({
+                    id: n.id,
+                    node_number: parseInt(n.id.split('_')[1]) || 1,
+                    name: n.name,
+                    description: n.config?.description || '',
+                    next_node: 0, // 从代码中解析
+                    code: n.config?.code || ''
+                }));
+
+                // 解析next_node
+                nodes.forEach(node => {
+                    const match = node.code.match(/next_node\s*=\s*(\d+)/);
+                    if (match) {
+                        node.next_node = parseInt(match[1]);
+                    }
+                });
+
+                if (nodes.length > 0) {
+                    nextNodeNumber = Math.max(...nodes.map(n => n.node_number)) + 1;
+                }
+
+                renderNodesList();
+                updateWorkflowStatusButton();
+            } catch (error) {
+                console.error('加载工作流失败:', error);
+                showToast('错误', '加载工作流失败: ' + error.message, 'error');
+            }
+        }
+
+        async function saveWorkflow() {
+            if (!currentWorkflow) {
+                showToast('错误', '请先选择工作流', 'error');
+                return;
+            }
+
+            // 确保代码中的next_node与配置一致
+            nodes.forEach(node => {
+                if (codeEditor && selectedNodeId === node.id) {
+                    node.code = codeEditor.getValue();
+                }
+                // 更新代码中的next_node
+                node.code = node.code.replace(/next_node\s*=\s*\d+/g, `next_node = ${node.next_node}`);
+            });
+
+            const workflowData = {
+                nodes: nodes.map(n => ({
+                    node_id: n.id,
+                    node_type: 'python',
+                    name: n.name,
+                    position_x: n.node_number * 200,
+                    position_y: 0,
+                    config: {
+                        code: n.code,
+                        description: n.description
+                    }
+                })),
+                connections: nodes.filter(n => n.next_node > 0).map(n => ({
+                    source: n.id,
+                    target: `node_${n.next_node}`
+                }))
+            };
+
+            try {
+                await api(`/api/admin/workflows/${currentWorkflow.id}/nodes`, {
+                    method: 'POST',
+                    body: JSON.stringify(workflowData)
+                });
+                showToast('保存成功', `工作流已保存，共 ${nodes.length} 个节点`, 'success');
+            } catch (error) {
+                showToast('保存失败', error.message, 'error');
+            }
+        }
+
+        // ========== 辅助功能 ==========
+        function toggleWorkflowEnabled() {
+            if (!currentWorkflow) return;
+
+            const newEnabled = !currentWorkflow.enabled;
+
+            api(`/api/admin/workflows/${currentWorkflow.id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ enabled: newEnabled })
+            }).then(() => {
+                currentWorkflow.enabled = newEnabled;
+                updateWorkflowStatusButton();
+                showToast('成功', `工作流已${newEnabled ? '启用' : '禁用'}`, 'success');
+            }).catch(error => {
+                showToast('失败', error.message, 'error');
+            });
+        }
+
+        function updateWorkflowStatusButton() {
+            const icon = document.getElementById('workflow-status-icon');
+            const text = document.getElementById('workflow-status-text');
+
+            if (currentWorkflow && currentWorkflow.enabled) {
+                icon.textContent = '🟢';
+                text.textContent = '已启用';
+            } else {
+                icon.textContent = '🔴';
+                text.textContent = '已禁用';
+            }
+        }
+
+        function viewLogs() {
+            if (!currentWorkflow) return;
+            window.location.href = `/ui/workflow-logs?workflow_id=${currentWorkflow.id}`;
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+
+        function showToast(title, message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `
+                <div class="toast-title">${title}</div>
+                <div class="toast-message">${message}</div>
+            `;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // ========== API ==========
+        async function api(url, options = {}) {
+            const response = await fetch(url, {
+                headers: { 'Content-Type': 'application/json', ...options.headers },
+                ...options
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || error.message || '请求失败');
+            }
+
+            return response.json();
+        }
+    </script>
+</body>
+</html>
