@@ -379,14 +379,16 @@
 
         .connection-line {
             stroke: #667eea;
-            stroke-width: 2;
+            stroke-width: 3;
             fill: none;
-            opacity: 0.6;
+            opacity: 0.8;
+            filter: drop-shadow(0 0 3px rgba(102, 126, 234, 0.5));
         }
 
         .connection-line:hover {
-            stroke-width: 3;
+            stroke-width: 4;
             opacity: 1;
+            filter: drop-shadow(0 0 6px rgba(102, 126, 234, 0.8));
         }
 
         /* 缩放控制 */
@@ -930,7 +932,16 @@ next_node = ${nodeNumber + 1}`;
 
         function renderConnections() {
             const svg = document.getElementById('connections-svg');
+
+            // 清空现有内容（但保留defs）
+            const existingDefs = svg.querySelector('defs');
             svg.innerHTML = '';
+            if (existingDefs) {
+                svg.appendChild(existingDefs);
+            }
+
+            // 确保箭头标记存在
+            ensureArrowMarker(svg);
 
             connections.forEach(conn => {
                 const sourceNode = nodes.find(n => n.id === conn.source);
@@ -953,26 +964,31 @@ next_node = ${nodeNumber + 1}`;
 
                 svg.appendChild(path);
             });
+        }
 
-            // 添加箭头标记
-            if (connections.length > 0 && !document.getElementById('arrowhead')) {
-                const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-                marker.setAttribute('id', 'arrowhead');
-                marker.setAttribute('markerWidth', '10');
-                marker.setAttribute('markerHeight', '7');
-                marker.setAttribute('refX', '9');
-                marker.setAttribute('refY', '3.5');
-                marker.setAttribute('orient', 'auto');
+        function ensureArrowMarker(svg) {
+            if (document.getElementById('arrowhead')) return;
 
-                const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
-                polygon.setAttribute('fill', '#667eea');
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            defs.setAttribute('id', 'svg-defs');
 
-                marker.appendChild(polygon);
-                defs.appendChild(marker);
-                svg.appendChild(defs);
-            }
+            // 创建箭头标记
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', 'arrowhead');
+            marker.setAttribute('markerWidth', '12');
+            marker.setAttribute('markerHeight', '12');
+            marker.setAttribute('refX', '10');
+            marker.setAttribute('refY', '6');
+            marker.setAttribute('orient', 'auto');
+
+            // 创建箭头路径（更大的三角形）
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            polygon.setAttribute('d', 'M 0 0 L 12 6 L 0 12 L 3 6 Z');
+            polygon.setAttribute('fill', '#667eea');
+
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+            svg.appendChild(defs);
         }
 
         // ========== 工作流操作 ==========
