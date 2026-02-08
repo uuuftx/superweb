@@ -372,8 +372,11 @@ function renderWorkflows() {
                 </span>
             </td>
             <td>
-                <a href="/ui/workflow-editor?workflow=${w.id}" class="btn btn-sm btn-primary" style="text-decoration: none;">
-                    ⚡ 编辑
+                <a href="/ui/workflow-editor-v2?workflow=${w.id}" class="btn btn-sm btn-primary" style="text-decoration: none;" title="可视化编辑器">
+                    🎨 可视化
+                </a>
+                <a href="/ui/workflow-editor?workflow=${w.id}" class="btn btn-sm" style="text-decoration: none; background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568;" title="代码编辑器">
+                    ⚡ 代码
                 </a>
                 <a href="/ui/workflow-logs?workflow_id=${w.id}" class="btn btn-sm" style="text-decoration: none; background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568;">
                     📋 日志
