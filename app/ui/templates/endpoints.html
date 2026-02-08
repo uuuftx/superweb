@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>API端点管理</h2>
+        <button class="btn btn-primary" onclick="showCreateModal()">+ 新建端点</button>
+    </div>
+</div>
+
+<div class="card">
+    <table id="endpoints-table">
+        <thead>
+            <tr>
+                <th>名称</th>
+                <th>路径</th>
+                <th>方法</th>
+                <th>逻辑类型</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="6" style="text-align: center; color: #a0aec0;">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- 创建/编辑模态框 -->
+<div id="endpoint-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">新建端点</h3>
+            <button class="close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="endpoint-form">
+            <input type="hidden" id="endpoint-id">
+            <div class="form-group">
+                <label>名称 *</label>
+                <input type="text" id="endpoint-name" required>
+            </div>
+            <div class="form-group">
+                <label>路径 *</label>
+                <input type="text" id="endpoint-path" placeholder="/api/example" required>
+            </div>
+            <div class="form-group">
+                <label>HTTP方法 *</label>
+                <select id="endpoint-method" required>
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>逻辑类型 *</label>
+                <select id="endpoint-logic-type" required>
+                    <option value="simple">简单响应</option>
+                    <option value="crud">数据库CRUD</option>
+                    <option value="workflow">工作流</option>
+                </select>
+            </div>
+            <div class="form-group" id="model-group" style="display: none;">
+                <label>关联数据模型</label>
+                <select id="endpoint-model">
+                    <option value="">选择模型...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="endpoint-description" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>状态</label>
+                <select id="endpoint-enabled">
+                    <option value="true">启用</option>
+                    <option value="false">禁用</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let endpoints = [];
+let models = [];
+
+async function loadEndpoints() {
+    try {
+        const data = await api('/api/admin/endpoints');
+        endpoints = data.items;
+        renderEndpoints();
+    } catch (error) {
+        console.error('加载失败:', error);
+    }
+}
+
+async function loadModels() {
+    try {
+        const data = await api('/api/admin/models');
+        models = data.items;
+        const select = document.getElementById('endpoint-model');
+        select.innerHTML = '<option value="">选择模型...</option>';
+        models.forEach(m => {
+            select.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+        });
+    } catch (error) {
+        console.error('加载模型失败:', error);
+    }
+}
+
+function renderEndpoints() {
+    const tbody = document.querySelector('#endpoints-table tbody');
+    if (endpoints.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #a0aec0;">暂无数据</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = endpoints.map(e => `
+        <tr>
+            <td><strong>${e.name}</strong></td>
+            <td><code style="background: #f7fafc; padding: 2px 6px; border-radius: 4px;">${e.path}</code></td>
+            <td><span class="method-${e.method}">${e.method}</span></td>
+            <td><span class="badge badge-warning">${e.logic_type}</span></td>
+            <td><span class="badge ${e.enabled ? 'badge-success' : 'badge-danger'}">${e.enabled ? '启用' : '禁用'}</span></td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="editEndpoint(${e.id})">编辑</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteEndpoint(${e.id})">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showCreateModal() {
+    document.getElementById('modal-title').textContent = '新建端点';
+    document.getElementById('endpoint-form').reset();
+    document.getElementById('endpoint-id').value = '';
+    document.getElementById('endpoint-modal').classList.add('active');
+    loadModels();
+}
+
+function editEndpoint(id) {
+    const endpoint = endpoints.find(e => e.id === id);
+    if (!endpoint) return;
+
+    document.getElementById('modal-title').textContent = '编辑端点';
+    document.getElementById('endpoint-id').value = endpoint.id;
+    document.getElementById('endpoint-name').value = endpoint.name;
+    document.getElementById('endpoint-path').value = endpoint.path;
+    document.getElementById('endpoint-method').value = endpoint.method;
+    document.getElementById('endpoint-logic-type').value = endpoint.logic_type;
+    document.getElementById('endpoint-description').value = endpoint.description || '';
+    document.getElementById('endpoint-enabled').value = endpoint.enabled.toString();
+    document.getElementById('endpoint-model').value = endpoint.model_id || '';
+
+    toggleModelField();
+    document.getElementById('endpoint-modal').classList.add('active');
+    loadModels();
+}
+
+function closeModal() {
+    document.getElementById('endpoint-modal').classList.remove('active');
+}
+
+function toggleModelField() {
+    const logicType = document.getElementById('endpoint-logic-type').value;
+    document.getElementById('model-group').style.display = logicType === 'crud' ? 'block' : 'none';
+}
+
+document.getElementById('endpoint-logic-type').addEventListener('change', toggleModelField);
+
+document.getElementById('endpoint-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('endpoint-id').value;
+    const data = {
+        name: document.getElementById('endpoint-name').value,
+        path: document.getElementById('endpoint-path').value,
+        method: document.getElementById('endpoint-method').value,
+        logic_type: document.getElementById('endpoint-logic-type').value,
+        description: document.getElementById('endpoint-description').value,
+        enabled: document.getElementById('endpoint-enabled').value === 'true',
+    };
+
+    if (data.logic_type === 'crud') {
+        data.model_id = parseInt(document.getElementById('endpoint-model').value) || null;
+    }
+
+    try {
+        if (id) {
+            await api(`/api/admin/endpoints/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(data)
+            });
+        } else {
+            await api('/api/admin/endpoints', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+        }
+        closeModal();
+        loadEndpoints();
+    } catch (error) {
+        alert('保存失败: ' + error.message);
+    }
+});
+
+async function deleteEndpoint(id) {
+    if (!confirm('确认删除此端点？')) return;
+    try {
+        await api(`/api/admin/endpoints/${id}`, { method: 'DELETE' });
+        loadEndpoints();
+    } catch (error) {
+        alert('删除失败: ' + error.message);
+    }
+}
+
+loadEndpoints();
+</script>
+{% endblock %}

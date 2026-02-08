@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作流执行日志 - SuperWeb</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 页面头部 */
+        .page-header {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 10px;
+        }
+
+        .page-subtitle {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        /* 筛选栏 */
+        .filter-bar {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .filter-select {
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 150px;
+        }
+
+        .filter-select:hover {
+            border-color: #667eea;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .filter-input {
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            width: 250px;
+            transition: all 0.2s;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f7fafc;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #edf2f7;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .stat-card.success .stat-value {
+            color: #10b981;
+        }
+
+        .stat-card.error .stat-value {
+            color: #ef4444;
+        }
+
+        /* 日志列表 */
+        .logs-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .logs-header {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logs-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .logs-count {
+            font-size: 14px;
+            color: #718096;
+        }
+
+        .log-item {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .log-item:hover {
+            background: #f7fafc;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .log-id {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .log-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .log-status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .log-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .log-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            font-size: 13px;
+            color: #718096;
+        }
+
+        .log-info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .log-info-icon {
+            font-size: 14px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .empty-text {
+            font-size: 18px;
+            color: #718096;
+            margin-bottom: 10px;
+        }
+
+        .empty-hint {
+            font-size: 14px;
+            color: #a0aec0;
+        }
+
+        /* 日志详情模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #a0aec0;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #4a5568;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(90vh - 80px);
+        }
+
+        .log-content {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-x: auto;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+
+        .loading-spinner {
+            border: 3px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 分页 */
+        .pagination {
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .page-btn {
+            padding: 8px 16px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            padding: 8px 16px;
+            color: #718096;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 页面头部 -->
+        <div class="page-header">
+            <h1 class="page-title">📋 工作流执行日志</h1>
+            <p class="page-subtitle">查看和分析工作流的执行记录</p>
+        </div>
+
+        <!-- 筛选栏 -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label class="filter-label">工作流:</label>
+                <select id="workflow-filter" class="filter-select" onchange="loadLogs()">
+                    <option value="">全部工作流</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">状态:</label>
+                <select id="status-filter" class="filter-select" onchange="loadLogs()">
+                    <option value="">全部</option>
+                    <option value="SUCCESS">成功</option>
+                    <option value="ERROR">失败</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <input type="text" id="search-input" class="filter-input" placeholder="搜索执行ID..." onkeyup="handleSearch(event)">
+            </div>
+
+            <div style="flex: 1;"></div>
+
+            <button class="btn btn-secondary" onclick="refreshLogs()">🔄 刷新</button>
+            <button class="btn btn-primary" onclick="goBack()">← 返回</button>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">总执行次数</div>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-label">成功次数</div>
+                <div class="stat-value" id="stat-success">0</div>
+            </div>
+            <div class="stat-card error">
+                <div class="stat-label">失败次数</div>
+                <div class="stat-value" id="stat-error">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">平均耗时</div>
+                <div class="stat-value" id="stat-avg-duration">0s</div>
+            </div>
+        </div>
+
+        <!-- 日志列表 -->
+        <div class="logs-container">
+            <div class="logs-header">
+                <div class="logs-title">执行记录</div>
+                <div class="logs-count" id="logs-count">共 0 条</div>
+            </div>
+            <div id="logs-list">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div>加载中...</div>
+                </div>
+            </div>
+            <div class="pagination" id="pagination" style="display: none;">
+                <button class="page-btn" id="prev-btn" onclick="changePage(-1)">上一页</button>
+                <span class="page-info" id="page-info">第 1 页</span>
+                <button class="page-btn" id="next-btn" onclick="changePage(1)">下一页</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日志详情模态框 -->
+    <div class="modal-overlay" id="log-modal" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 class="modal-title">📄 日志详情</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre class="log-content" id="log-content">加载中...</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局状态
+        let allLogs = [];
+        let filteredLogs = [];
+        let currentPage = 1;
+        const pageSize = 20;
+        let currentWorkflowId = null;
+
+        // API请求函数
+        async function api(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (options.body) {
+                options.body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+            }
+
+            const response = await fetch(url, { ...defaultOptions, ...options });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || error.message || '请求失败');
+            }
+
+            return response.json();
+        }
+
+        // 获取URL参数
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                workflow_id: params.get('workflow_id')
+            };
+        }
+
+        // 初始化
+        async function init() {
+            const params = getUrlParams();
+            currentWorkflowId = params.workflow_id;
+
+            // 加载工作流列表
+            await loadWorkflows();
+
+            // 加载日志
+            await loadLogs();
+        }
+
+        // 加载工作流列表
+        async function loadWorkflows() {
+            try {
+                const data = await api('/api/admin/workflows');
+                const workflows = data.items || [];
+
+                const select = document.getElementById('workflow-filter');
+                select.innerHTML = '<option value="">全部工作流</option>';
+
+                workflows.forEach(wf => {
+                    const option = document.createElement('option');
+                    option.value = wf.id;
+                    option.textContent = wf.name;
+                    if (currentWorkflowId && parseInt(currentWorkflowId) === wf.id) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('加载工作流列表失败:', error);
+            }
+        }
+
+        // 加载日志
+        async function loadLogs() {
+            const workflowId = document.getElementById('workflow-filter').value || currentWorkflowId;
+            const statusFilter = document.getElementById('status-filter').value;
+
+            if (!workflowId) {
+                showEmptyState('请选择工作流');
+                return;
+            }
+
+            try {
+                const data = await api(`/api/admin/workflows/${workflowId}/logs?limit=1000`);
+                allLogs = data.logs || [];
+
+                // 过滤
+                filteredLogs = allLogs.filter(log => {
+                    if (statusFilter && log.status !== statusFilter) return false;
+                    return true;
+                });
+
+                // 重置分页
+                currentPage = 1;
+
+                // 更新统计
+                updateStats();
+
+                // 渲染列表
+                renderLogs();
+            } catch (error) {
+                showError('加载日志失败: ' + error.message);
+            }
+        }
+
+        // 更新统计
+        function updateStats() {
+            const total = filteredLogs.length;
+            const success = filteredLogs.filter(l => l.status === 'SUCCESS').length;
+            const error = filteredLogs.filter(l => l.status === 'ERROR').length;
+
+            // 计算平均耗时
+            const durations = filteredLogs
+                .filter(l => l.duration)
+                .map(l => parseFloat(l.duration));
+            const avgDuration = durations.length > 0
+                ? (durations.reduce((a, b) => a + b, 0) / durations.length).toFixed(3)
+                : 0;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-success').textContent = success;
+            document.getElementById('stat-error').textContent = error;
+            document.getElementById('stat-avg-duration').textContent = avgDuration + 's';
+            document.getElementById('logs-count').textContent = `共 ${total} 条`;
+        }
+
+        // 渲染日志列表
+        function renderLogs() {
+            const container = document.getElementById('logs-list');
+
+            if (filteredLogs.length === 0) {
+                showEmptyState('暂无执行日志');
+                return;
+            }
+
+            // 分页
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageLogs = filteredLogs.slice(start, end);
+
+            const html = pageLogs.map(log => {
+                const statusClass = log.status === 'SUCCESS' ? 'success' : 'error';
+                const statusText = log.status === 'SUCCESS' ? '✓ 成功' : '✗ 失败';
+                const duration = log.duration ? `${parseFloat(log.duration).toFixed(3)}s` : 'N/A';
+
+                return `
+                    <div class="log-item" onclick="showLogDetail('${log.filename}')">
+                        <div class="log-header">
+                            <div class="log-id">
+                                ${log.execution_id ? `#${log.execution_id.slice(0, 8)}` : 'Unknown'}
+                            </div>
+                            <div class="log-status ${statusClass}">${statusText}</div>
+                        </div>
+                        <div class="log-info">
+                            <div class="log-info-item">
+                                <span class="log-info-icon">⏰</span>
+                                <span>${log.start_time || 'N/A'}</span>
+                            </div>
+                            <div class="log-info-item">
+                                <span class="log-info-icon">⏱️</span>
+                                <span>${duration}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+
+            // 更新分页
+            updatePagination();
+        }
+
+        // 更新分页
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredLogs.length / pageSize);
+            const pagination = document.getElementById('pagination');
+
+            if (totalPages <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+
+            pagination.style.display = 'flex';
+            document.getElementById('page-info').textContent = `第 ${currentPage} / ${totalPages} 页`;
+            document.getElementById('prev-btn').disabled = currentPage <= 1;
+            document.getElementById('next-btn').disabled = currentPage >= totalPages;
+        }
+
+        // 翻页
+        function changePage(delta) {
+            currentPage += delta;
+            renderLogs();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 显示空状态
+        function showEmptyState(message) {
+            const container = document.getElementById('logs-list');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <div class="empty-text">${message}</div>
+                    <div class="empty-hint">执行工作流后会自动生成日志记录</div>
+                </div>
+            `;
+            document.getElementById('pagination').style.display = 'none';
+        }
+
+        // 显示错误
+        function showError(message) {
+            const container = document.getElementById('logs-list');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">❌</div>
+                    <div class="empty-text">${message}</div>
+                </div>
+            `;
+        }
+
+        // 显示日志详情
+        async function showLogDetail(filename) {
+            const workflowId = document.getElementById('workflow-filter').value || currentWorkflowId;
+
+            document.getElementById('log-modal').classList.add('active');
+            document.getElementById('log-content').textContent = '加载中...';
+
+            try {
+                const data = await api(`/api/admin/workflows/${workflowId}/logs/${filename}`);
+                document.getElementById('log-content').textContent = data.content || '无法读取日志内容';
+            } catch (error) {
+                document.getElementById('log-content').textContent = '加载失败: ' + error.message;
+            }
+        }
+
+        // 关闭模态框
+        function closeModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('log-modal').classList.remove('active');
+        }
+
+        // 搜索
+        function handleSearch(event) {
+            if (event.key === 'Enter') {
+                const keyword = document.getElementById('search-input').value.toLowerCase();
+                if (!keyword) {
+                    filteredLogs = [...allLogs];
+                } else {
+                    filteredLogs = allLogs.filter(log =>
+                        (log.execution_id && log.execution_id.toLowerCase().includes(keyword)) ||
+                        (log.start_time && log.start_time.toLowerCase().includes(keyword))
+                    );
+                }
+                currentPage = 1;
+                updateStats();
+                renderLogs();
+            }
+        }
+
+        // 刷新日志
+        function refreshLogs() {
+            loadLogs();
+        }
+
+        // 返回
+        function goBack() {
+            window.history.back();
+        }
+
+        // ESC关闭模态框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // 页面加载时初始化
+        window.onload = init;
+    </script>
+</body>
+</html>

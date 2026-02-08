@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>数据模型管理</h2>
+        <button class="btn btn-primary" onclick="showCreateModal()">+ 新建模型</button>
+    </div>
+</div>
+
+<div class="card">
+    <table id="models-table">
+        <thead>
+            <tr>
+                <th>模型名称</th>
+                <th>数据表名</th>
+                <th>描述</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="5" style="text-align: center; color: #a0aec0;">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- 创建/编辑模态框 -->
+<div id="model-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">新建数据模型</h3>
+            <button class="close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="model-form">
+            <input type="hidden" id="model-id">
+            <div class="form-group">
+                <label>模型名称 *</label>
+                <input type="text" id="model-name" placeholder="User" required>
+            </div>
+            <div class="form-group">
+                <label>数据表名 *</label>
+                <input type="text" id="model-table" placeholder="users" required>
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="model-description" rows="2"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 字段管理模态框 -->
+<div id="fields-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>管理字段 - <span id="fields-model-name"></span></h3>
+            <button class="close" onclick="closeFieldsModal()">&times;</button>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <button class="btn btn-primary btn-sm" onclick="showAddFieldModal()">+ 添加字段</button>
+        </div>
+        <table id="fields-table">
+            <thead>
+                <tr>
+                    <th>字段名</th>
+                    <th>类型</th>
+                    <th>必填</th>
+                    <th>唯一</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加字段模态框 -->
+<div id="field-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>添加字段</h3>
+            <button class="close" onclick="closeFieldModal()">&times;</button>
+        </div>
+        <form id="field-form">
+            <div class="form-group">
+                <label>字段名 *</label>
+                <input type="text" id="field-name" required>
+            </div>
+            <div class="form-group">
+                <label>字段类型 *</label>
+                <select id="field-type" required>
+                    <option value="string">字符串</option>
+                    <option value="integer">整数</option>
+                    <option value="float">浮点数</option>
+                    <option value="boolean">布尔值</option>
+                    <option value="datetime">日期时间</option>
+                    <option value="text">长文本</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="field-required"> 必填
+                </label>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="field-unique"> 唯一
+                </label>
+            </div>
+            <div class="form-group">
+                <label>默认值</label>
+                <input type="text" id="field-default">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeFieldModal()">取消</button>
+                <button type="submit" class="btn btn-primary">添加</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let models = [];
+let currentModelId = null;
+
+async function loadModels() {
+    try {
+        const data = await api('/api/admin/models');
+        models = data.items;
+        renderModels();
+    } catch (error) {
+        console.error('加载失败:', error);
+    }
+}
+
+function renderModels() {
+    const tbody = document.querySelector('#models-table tbody');
+    if (models.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">暂无数据</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = models.map(m => `
+        <tr>
+            <td><strong>${m.name}</strong></td>
+            <td><code style="background: #f7fafc; padding: 2px 6px; border-radius: 4px;">${m.table_name}</code></td>
+            <td>${m.description || '-'}</td>
+            <td><span class="badge ${m.enabled ? 'badge-success' : 'badge-danger'}">${m.enabled ? '启用' : '禁用'}</span></td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="manageFields(${m.id}, '${m.name}')">字段</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteModel(${m.id})">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showCreateModal() {
+    document.getElementById('modal-title').textContent = '新建数据模型';
+    document.getElementById('model-form').reset();
+    document.getElementById('model-id').value = '';
+    document.getElementById('model-modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('model-modal').classList.remove('active');
+}
+
+document.getElementById('model-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        name: document.getElementById('model-name').value,
+        table_name: document.getElementById('model-table').value,
+        description: document.getElementById('model-description').value,
+    };
+
+    try {
+        await api('/api/admin/models', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        closeModal();
+        loadModels();
+    } catch (error) {
+        alert('保存失败: ' + error.message);
+    }
+});
+
+async function deleteModel(id) {
+    if (!confirm('确认删除此模型？')) return;
+    // TODO: 实现删除API
+    alert('删除功能待实现');
+}
+
+function manageFields(id, name) {
+    currentModelId = id;
+    document.getElementById('fields-model-name').textContent = name;
+    document.getElementById('fields-modal').classList.add('active');
+    // TODO: 加载字段列表
+}
+
+function closeFieldsModal() {
+    document.getElementById('fields-modal').classList.remove('active');
+}
+
+function showAddFieldModal() {
+    document.getElementById('field-form').reset();
+    document.getElementById('field-modal').classList.add('active');
+}
+
+function closeFieldModal() {
+    document.getElementById('field-modal').classList.remove('active');
+}
+
+document.getElementById('field-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        name: document.getElementById('field-name').value,
+        field_type: document.getElementById('field-type').value,
+        required: document.getElementById('field-required').checked,
+        unique: document.getElementById('field-unique').checked,
+        default_value: document.getElementById('field-default').value,
+    };
+
+    try {
+        await api(`/api/admin/models/${currentModelId}/fields`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        closeFieldModal();
+        alert('字段添加成功');
+    } catch (error) {
+        alert('添加失败: ' + error.message);
+    }
+});
+
+loadModels();
+</script>
+{% endblock %}

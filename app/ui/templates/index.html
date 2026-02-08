@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>欢迎使用 SuperWeb</h2>
+    <p style="margin-top: 15px; color: #718096;">
+        SuperWeb 是一个基于 FastAPI 的可视化工作流开发框架。
+        你可以通过网页界面创建和管理业务流程，每个流程通过统一的接口调用，无需编写代码即可快速开发API。
+    </p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+    <div class="card" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%); border: 2px solid #667eea;">
+        <h3 style="color: #667eea;">🔀 工作流管理</h3>
+        <p style="color: #718096; margin: 10px 0;">创建和管理业务流程，可视化配置节点和逻辑</p>
+        <a href="/ui/workflows" class="btn btn-primary">管理工作流</a>
+    </div>
+
+    <div class="card">
+        <h3 style="color: #48bb78;">🚀 统一接口</h3>
+        <p style="color: #718096; margin: 10px 0;">
+            所有流程通过统一接口调用（仅支持 POST）：<br>
+            <code style="background: #f7fafc; padding: 4px 8px; border-radius: 4px; font-family: monospace;">POST /workflow/api</code>
+        </p>
+        <div style="margin-top: 10px; font-size: 13px; color: #718096; line-height: 1.6;">
+            <strong>请求格式：</strong><br>
+            • workflow_name: 要调用的流程名称（必需）<br>
+            • 其他参数: 传递给流程的业务数据
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="color: #ed8936;">📖 API文档</h3>
+        <p style="color: #718096; margin: 10px 0;">查看完整的API文档和接口说明</p>
+        <a href="/docs" target="_blank" class="btn btn-primary">查看文档</a>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h3>快速开始</h3>
+    <ol style="margin-top: 15px; padding-left: 20px; line-height: 1.8;">
+        <li>在"工作流"页面创建新的工作流</li>
+        <li>添加节点并编写Python代码处理业务逻辑</li>
+        <li>保存工作流，节点信息自动存储到数据库</li>
+        <li>通过 <code style="background: #f7fafc; padding: 2px 6px; border-radius: 4px; font-family: monospace;">POST /workflow/api</code> 调用流程</li>
+        <li>在JSON body中传递 <code style="background: #f7fafc; padding: 2px 6px; border-radius: 4px; font-family: monospace;">workflow_name</code> 参数指定流程</li>
+        <li>访问 <a href="/docs" target="_blank" style="color: #667eea;">/docs</a> 查看API文档</li>
+    </ol>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h3>接口使用示例</h3>
+    <div style="margin-top: 15px; background: #1a202c; border-radius: 8px; padding: 20px;">
+        <pre style="color: #e2e8f0; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; line-height: 1.6; overflow-x: auto;"><code><span style="color: #9cdcfe;"># 调用名为"测试API"的工作流</span>
+curl -X POST http://localhost:8001/workflow/api \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_name": "测试API",
+    "name": "张三",
+    "age": 25
+  }'
+
+<span style="color: #9cdcfe;"># Python 示例</span>
+import httpx
+
+async with httpx.AsyncClient() as client:
+    response = await client.post(
+        "http://localhost:8001/workflow/api",
+        json={
+            "workflow_name": "测试API",
+            "name": "李四",
+            "age": 30
+        }
+    )
+    result = response.json()
+    print(result)</code></pre>
+    </div>
+</div>
+{% endblock %}

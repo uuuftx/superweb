@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试节点加载</title>
+</head>
+<body>
+    <h1>工作流节点加载测试</h1>
+    <div>
+        <label>选择工作流：</label>
+        <select id="workflow-select">
+            <option value="">加载中...</option>
+        </select>
+    </div>
+    <div style="margin-top: 20px;">
+        <h2>节点列表</h2>
+        <div id="nodes-list"></div>
+    </div>
+
+    <script>
+        async function api(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+            return response.json();
+        }
+
+        async function loadWorkflows() {
+            const data = await api('/api/admin/workflows');
+            const select = document.getElementById('workflow-select');
+            select.innerHTML = '<option value="">选择流程...</option>';
+            data.items.forEach(w => {
+                select.innerHTML += `<option value="${w.id}">${w.name}</option>`;
+            });
+        }
+
+        async function loadWorkflowNodes() {
+            const workflowId = document.getElementById('workflow-select').value;
+            if (!workflowId) {
+                document.getElementById('nodes-list').innerHTML = '<p>请先选择工作流</p>';
+                return;
+            }
+
+            const data = await api(`/api/admin/workflows/${workflowId}/detail`);
+            console.log('API返回数据:', data);
+
+            // 按照前端代码转换节点数据
+            const nodes = data.nodes.map(n => ({
+                id: n.id,
+                node_number: n.id.startsWith('node_') ? parseInt(n.id.split('_')[1]) : 1,
+                name: n.name,
+                code: n.config?.code || '',
+                description: n.config?.description || ''
+            }));
+
+            console.log('转换后的节点:', nodes);
+
+            // 渲染节点列表
+            const container = document.getElementById('nodes-list');
+            if (nodes.length === 0) {
+                container.innerHTML = '<p>暂无节点</p>';
+                return;
+            }
+
+            // 按节点编号排序
+            const sortedNodes = [...nodes].sort((a, b) => a.node_number - b.node_number);
+
+            container.innerHTML = sortedNodes.map(node => `
+                <div style="border: 1px solid #ccc; padding: 10px; margin: 5px 0;">
+                    <h3>节点 ${node.node_number}: ${node.name}</h3>
+                    <p><strong>ID:</strong> ${node.id}</p>
+                    <p><strong>描述:</strong> ${node.description || '无描述'}</p>
+                    <p><strong>代码预览:</strong></p>
+                    <pre style="background: #f0f0f0; padding: 10px; overflow: auto;">${node.code.substring(0, 200)}...</pre>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('workflow-select').addEventListener('change', loadWorkflowNodes);
+
+        // 初始化
+        loadWorkflows();
+    </script>
+</body>
+</html>

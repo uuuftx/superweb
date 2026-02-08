@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2>工作流管理</h2>
+            <p style="color: #718096; margin-top: 5px;">管理和编辑业务流程工作流</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" onclick="showCreateModal()">+ 新建工作流</button>
+        </div>
+    </div>
+</div>
+
+<!-- 推广卡片 -->
+<div class="card" style="
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+    border: 2px solid #667eea;
+    border-radius: 12px;
+">
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <div style="font-size: 56px;">⚡</div>
+        <div style="flex: 1;">
+            <h3 style="margin-bottom: 8px; color: #667eea;">全新专业工作流编辑器</h3>
+            <p style="color: #718096; margin-bottom: 12px; line-height: 1.6;">
+                可视化拖拽组件、无限画布、实时预览、智能连接 - 打造强大的业务流程编排体验
+            </p>
+            <a href="/ui/workflow-editor" style="
+                color: #667eea;
+                text-decoration: none;
+                font-weight: 600;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+            ">
+                立即体验 <span>→</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <table id="workflows-table">
+        <thead>
+            <tr>
+                <th>工作流名称</th>
+                <th>描述</th>
+                <th>状态</th>
+                <th style="width: 200px;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="4" style="text-align: center; color: #a0aec0; padding: 40px;">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- 创建工作流模态框 -->
+<div id="workflow-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✨ 新建工作流</h3>
+            <button class="close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="workflow-form">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>工作流名称</label>
+                    <input type="text" id="workflow-name" placeholder="例如: 用户注册流程" required>
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea id="workflow-description" rows="3" placeholder="描述这个工作流的作用..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">创建工作流</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 确认对话框 -->
+<div class="confirm-dialog" id="confirm-dialog">
+    <div class="confirm-box">
+        <div class="confirm-header">
+            <div class="confirm-icon">⚠️</div>
+            <div class="confirm-title" id="confirm-title">确认操作</div>
+            <div class="confirm-message" id="confirm-message">确定要执行此操作吗？</div>
+        </div>
+        <div class="confirm-footer">
+            <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">取消</button>
+            <button class="confirm-btn confirm-btn-confirm" id="confirm-ok">确认</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.confirm-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+}
+.confirm-dialog.active { display: flex; }
+.confirm-box {
+    background: white;
+    border-radius: 16px;
+    padding: 0;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease-out;
+}
+.confirm-header {
+    padding: 24px 28px 20px;
+    text-align: center;
+}
+.confirm-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+.confirm-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a202c;
+    margin-bottom: 8px;
+}
+.confirm-message {
+    font-size: 14px;
+    color: #718096;
+    line-height: 1.6;
+}
+.confirm-footer {
+    display: flex;
+    gap: 12px;
+    padding: 20px 28px;
+    border-top: 1px solid #f0f0f0;
+    background: #fafafa;
+    border-radius: 0 0 16px 16px;
+}
+.confirm-btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.confirm-btn-cancel {
+    background: #f7fafc;
+    color: #4a5568;
+    border: 1.5px solid #e2e8f0;
+}
+.confirm-btn-cancel:hover {
+    background: #e2e8f0;
+}
+.confirm-btn-confirm {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+.confirm-btn-confirm:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+    transform: translateY(-1px);
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+</style>
+<script>
+let workflows = [];
+
+// Toast 通知函数
+function showToast(title, message, type = 'info', duration = 3000) {
+    // 创建 toast 容器（如果不存在）
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
+        document.body.appendChild(container);
+    }
+
+    const icons = {
+        success: '✅',
+        error: '❌',
+        info: 'ℹ️'
+    };
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        min-width: 300px;
+        background: white;
+        border-radius: 12px;
+        padding: 16px 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideInRight 0.3s ease-out;
+    `;
+    toast.style.borderLeft = `4px solid ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'}`;
+
+    toast.innerHTML = `
+        <div style="font-size: 24px;">${icons[type]}</div>
+        <div style="flex: 1;">
+            <div style="font-weight: 600; font-size: 14px; color: #1a202c;">${title}</div>
+            ${message ? `<div style="font-size: 13px; color: #718096;">${message}</div>` : ''}
+        </div>
+        <button onclick="this.parentElement.remove()" style="
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #a0aec0;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        ">×</button>
+    `;
+
+    container.appendChild(toast);
+
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.style.animation = 'fadeOut 0.3s ease-out forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+}
+
+// 添加动画样式
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInRight {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
+
+// 确认对话框函数
+function showConfirm(title, message, options = {}) {
+    const dialog = document.getElementById('confirm-dialog');
+    const titleEl = document.getElementById('confirm-title');
+    const messageEl = document.getElementById('confirm-message');
+    const cancelBtn = document.getElementById('confirm-cancel');
+    const okBtn = document.getElementById('confirm-ok');
+
+    // 设置内容
+    titleEl.textContent = title || '确认操作';
+    messageEl.textContent = message || '确定要执行此操作吗？';
+
+    // 设置按钮文本
+    cancelBtn.textContent = options.cancelText || '取消';
+    okBtn.textContent = options.confirmText || '确认';
+
+    // 设置图标
+    const iconEl = dialog.querySelector('.confirm-icon');
+    iconEl.textContent = options.icon || '⚠️';
+
+    // 显示对话框
+    dialog.classList.add('active');
+
+    // 返回 Promise
+    return new Promise((resolve) => {
+        const cleanup = () => {
+            dialog.classList.remove('active');
+            cancelBtn.onclick = null;
+            okBtn.onclick = null;
+        };
+
+        cancelBtn.onclick = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        okBtn.onclick = () => {
+            cleanup();
+            resolve(true);
+        };
+
+        // 点击背景关闭
+        dialog.onclick = (e) => {
+            if (e.target === dialog) {
+                cleanup();
+                resolve(false);
+            }
+        };
+    });
+}
+
+async function loadWorkflows() {
+    try {
+        const data = await api('/api/admin/workflows');
+        workflows = data.items;
+        renderWorkflows();
+    } catch (error) {
+        console.error('加载失败:', error);
+    }
+}
+
+function renderWorkflows() {
+    const tbody = document.querySelector('#workflows-table tbody');
+    if (workflows.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 40px; color: #a0aec0;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
+                    <div style="font-size: 14px; margin-bottom: 8px;">暂无工作流</div>
+                    <div style="font-size: 12px;">
+                        <a href="/ui/workflow-editor" style="color: #667eea;">打开专业编辑器</a> 创建你的第一个工作流
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = workflows.map(w => `
+        <tr>
+            <td>
+                <strong style="color: #2d3748;">${w.name}</strong>
+            </td>
+            <td style="color: #718096;">${w.description || '-'}</td>
+            <td>
+                <span class="badge ${w.enabled ? 'badge-success' : 'badge-danger'}">
+                    ${w.enabled ? '启用' : '禁用'}
+                </span>
+            </td>
+            <td>
+                <a href="/ui/workflow-editor?workflow=${w.id}" class="btn btn-sm btn-primary" style="text-decoration: none;">
+                    ⚡ 编辑
+                </a>
+                <a href="/ui/workflow-logs?workflow_id=${w.id}" class="btn btn-sm" style="text-decoration: none; background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568;">
+                    📋 日志
+                </a>
+                <button class="btn btn-sm btn-danger" onclick="deleteWorkflow(${w.id})">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showCreateModal() {
+    document.getElementById('workflow-form').reset();
+    document.getElementById('workflow-modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('workflow-modal').classList.remove('active');
+}
+
+document.getElementById('workflow-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        name: document.getElementById('workflow-name').value,
+        description: document.getElementById('workflow-description').value,
+    };
+
+    try {
+        const result = await api('/api/admin/workflows', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        closeModal();
+        await loadWorkflows();
+        // 跳转到编辑器
+        window.location.href = `/ui/workflow-editor?workflow=${result.id}`;
+    } catch (error) {
+        alert('创建失败: ' + error.message);
+    }
+});
+
+async function deleteWorkflow(id) {
+    const workflow = workflows.find(w => w.id === id);
+    const confirmed = await showConfirm(
+        '确认删除工作流',
+        `确定要删除工作流 "${workflow?.name}" 吗？此操作不可恢复！`,
+        {
+            icon: '🗑️',
+            confirmText: '确认删除',
+            cancelText: '取消'
+        }
+    );
+
+    if (!confirmed) return;
+
+    try {
+        await api(`/api/admin/workflows/${id}`, {
+            method: 'DELETE'
+        });
+        showToast('删除成功', `工作流 "${workflow?.name}" 已删除`, 'success');
+        loadWorkflows();
+    } catch (error) {
+        showToast('删除失败', error.message, 'error');
+    }
+}
+
+loadWorkflows();
+</script>
+{% endblock %}
