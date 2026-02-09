@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.tool-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.export-area, .import-area {
+    margin-top: 15px;
+}
+
+.textarea-large {
+    width: 100%;
+    height: 200px;
+    padding: 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 13px;
+    resize: vertical;
+}
+
+.btn-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.status-item {
+    background: #f7fafc;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.status-label {
+    font-size: 12px;
+    color: #718096;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+.status-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.status-value.success { color: #10b981; }
+.status-value.warning { color: #f59e0b; }
+.status-value.error { color: #ef4444; }
+
+.file-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: #f7fafc;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.file-info {
+    flex: 1;
+}
+
+.file-name {
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.file-size {
+    font-size: 12px;
+    color: #718096;
+}
+
+.drop-zone {
+    border: 2px dashed #cbd5e0;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+    border-color: #667eea;
+    background: #f7fafc;
+}
+</style>
+
+<div class="card">
+    <h2>🛠️ 开发者工具</h2>
+    <p style="color: #718096; margin-top: 5px;">工作流导入导出、系统状态监控、存储管理</p>
+</div>
+
+<div class="tools-grid">
+    <!-- 工作流导出 -->
+    <div class="tool-card">
+        <h3 style="margin-top: 0;">📤 工作流导出</h3>
+        <p style="color: #718096; font-size: 14px;">将工作流导出为 JSON 格式，方便备份和迁移</p>
+
+        <div style="margin-top: 15px;">
+            <label style="font-weight: 600; font-size: 13px; color: #4a5568;">选择工作流</label>
+            <select id="export-workflow" class="form-input" style="width: 100%; margin-top: 5px;">
+                <option value="">-- 选择工作流 --</option>
+            </select>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="exportWorkflow()">导出 JSON</button>
+            <button class="btn" onclick="copyExport()">复制</button>
+        </div>
+
+        <div class="export-area">
+            <textarea id="export-result" class="textarea-large" readonly placeholder="导出的工作流 JSON 将显示在这里..."></textarea>
+        </div>
+    </div>
+
+    <!-- 工作流导入 -->
+    <div class="tool-card">
+        <h3 style="margin-top: 0;">📥 工作流导入</h3>
+        <p style="color: #718096; font-size: 14px;">从 JSON 导入工作流配置</p>
+
+        <div class="import-area">
+            <textarea id="import-data" class="textarea-large" placeholder='粘贴工作流 JSON，格式：
+{
+  "workflow": {"name": "...", "description": "..."},
+  "nodes": [...],
+  "connections": [...]
+}'></textarea>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="importWorkflow()">导入工作流</button>
+            <button class="btn" onclick="clearImport()">清空</button>
+        </div>
+
+        <div id="import-result" style="margin-top: 15px;"></div>
+    </div>
+</div>
+
+<div class="tools-grid" style="margin-top: 20px;">
+    <!-- 系统状态 -->
+    <div class="tool-card">
+        <h3 style="margin-top: 0;">💻 系统状态</h3>
+        <p style="color: #718096; font-size: 14px;">查看系统运行状态和统计信息</p>
+
+        <div class="status-grid" id="system-status">
+            <div class="status-item">
+                <div class="status-label">总请求数</div>
+                <div class="status-value" id="stat-requests">-</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">成功率</div>
+                <div class="status-value" id="stat-success">-</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">平均响应</div>
+                <div class="status-value" id="stat-latency">-<span style="font-size: 14px;">ms</span></div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">工作流数量</div>
+                <div class="status-value" id="stat-workflows">-</div>
+            </div>
+        </div>
+
+        <button class="btn" style="width: 100%; margin-top: 15px;" onclick="loadSystemStatus()">🔄 刷新状态</button>
+    </div>
+
+    <!-- 存储管理 -->
+    <div class="tool-card">
+        <h3 style="margin-top: 0;">📁 存储管理</h3>
+        <p style="color: #718096; font-size: 14px;">查看和管理存储文件</p>
+
+        <div class="file-list" id="storage-files">
+            <div style="text-align: center; padding: 20px; color: #a0aec0;">加载中...</div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" onclick="loadStorageFiles()">🔄 刷新</button>
+            <button class="btn" onclick="openStorageFolder()" style="background: #f7fafc;">📂 打开文件夹</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ========== 工作流导出 ==========
+
+async function loadWorkflows() {
+    const select = document.getElementById('export-workflow');
+    try {
+        const response = await fetch('/api/admin/workflows');
+        const data = await response.json();
+
+        select.innerHTML = '<option value="">-- 选择工作流 --</option>';
+        data.items.forEach(wf => {
+            const option = document.createElement('option');
+            option.value = wf.id;
+            option.textContent = wf.name + (wf.description ? ` (${wf.description})` : '');
+            select.appendChild(option);
+        });
+    } catch (error) {
+        showToast('加载失败', '无法加载工作流列表', 'error');
+    }
+}
+
+async function exportWorkflow() {
+    const workflowId = document.getElementById('export-workflow').value;
+    if (!workflowId) {
+        showToast('请选择工作流', '请先选择要导出的工作流', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/workflows/${workflowId}/export`);
+        const data = await response.json();
+
+        document.getElementById('export-result').value = JSON.stringify(data, null, 2);
+        showToast('导出成功', '工作流已导出为 JSON', 'success');
+    } catch (error) {
+        showToast('导出失败', error.message, 'error');
+    }
+}
+
+function copyExport() {
+    const textarea = document.getElementById('export-result');
+    if (!textarea.value) {
+        showToast('没有内容', '请先导出工作流', 'error');
+        return;
+    }
+
+    textarea.select();
+    document.execCommand('copy');
+    showToast('复制成功', 'JSON 已复制到剪贴板', 'success');
+}
+
+// ========== 工作流导入 ==========
+
+async function importWorkflow() {
+    const data = document.getElementById('import-data').value;
+    if (!data.trim()) {
+        showToast('请输入数据', '请粘贴工作流 JSON', 'error');
+        return;
+    }
+
+    try {
+        const jsonData = JSON.parse(data);
+
+        const response = await fetch('/api/admin/workflows/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(jsonData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            document.getElementById('import-result').innerHTML = `
+                <div style="padding: 12px; background: #d1fae5; border-radius: 6px; color: #065f46;">
+                    ✅ ${result.message}<br>
+                    <strong>工作流ID:</strong> ${result.workflow.id}<br>
+                    <strong>名称:</strong> ${result.workflow.name}
+                </div>
+            `;
+            showToast('导入成功', `工作流 "${result.workflow.name}" 已创建`, 'success');
+            loadWorkflows(); // 刷新列表
+        } else {
+            throw new Error(result.detail || '导入失败');
+        }
+    } catch (error) {
+        document.getElementById('import-result').innerHTML = `
+            <div style="padding: 12px; background: #fee2e2; border-radius: 6px; color: #991b1b;">
+                ❌ ${error.message}
+            </div>
+        `;
+        showToast('导入失败', error.message, 'error');
+    }
+}
+
+function clearImport() {
+    document.getElementById('import-data').value = '';
+    document.getElementById('import-result').innerHTML = '';
+}
+
+// ========== 系统状态 ==========
+
+async function loadSystemStatus() {
+    try {
+        // 请求统计
+        const statsRes = await fetch('/api/dev/request-stats');
+        const stats = await statsRes.json();
+
+        document.getElementById('stat-requests').textContent = stats.total_requests;
+        document.getElementById('stat-success').textContent = stats.success_rate + '%';
+        document.getElementById('stat-latency').innerHTML = stats.avg_duration_ms + '<span style="font-size: 14px;">ms</span>';
+
+        // 工作流数量
+        const wfRes = await fetch('/api/admin/workflows');
+        const wfData = await wfRes.json();
+        document.getElementById('stat-workflows').textContent = wfData.items.length;
+
+    } catch (error) {
+        console.error('加载状态失败:', error);
+    }
+}
+
+// ========== 存储管理 ==========
+
+async function loadStorageFiles() {
+    try {
+        const response = await fetch('/api/dev/storage-files');
+        const data = await response.json();
+
+        const container = document.getElementById('storage-files');
+
+        if (!data.files || data.files.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #a0aec0;">暂无文件</div>';
+            return;
+        }
+
+        container.innerHTML = data.files.map(file => `
+            <div class="file-item">
+                <div class="file-info">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${formatSize(file.size)} • ${file.modified}</div>
+                </div>
+                <button class="btn btn-sm" onclick="deleteFile('${file.path}')" style="background: #fee2e2; color: #991b1b;">删除</button>
+            </div>
+        `).join('');
+    } catch (error) {
+        document.getElementById('storage-files').innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">加载失败</div>';
+    }
+}
+
+function openStorageFolder() {
+    // 在新窗口打开文件管理器
+    alert('存储目录: ./storage/\n\n请手动打开此目录查看文件');
+}
+
+async function deleteFile(path) {
+    if (!confirm(`确定要删除文件吗？\n${path}`)) return;
+
+    try {
+        await fetch('/api/dev/storage-files', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path })
+        });
+        showToast('删除成功', '文件已删除', 'success');
+        loadStorageFiles();
+    } catch (error) {
+        showToast('删除失败', error.message, 'error');
+    }
+}
+
+function formatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 初始化
+loadWorkflows();
+loadSystemStatus();
+loadStorageFiles();
+</script>
+{% endblock %}

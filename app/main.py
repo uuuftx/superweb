@@ -6,9 +6,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import os
+import time
 
 from app.core.config import get_settings
 from app.core.database import init_db
+from app.core.request_logger import request_logger
 from app.engine import loader
 from app import api, ui
 
@@ -56,6 +58,35 @@ app.include_router(api.router)
 if settings.UI_ENABLED:
     app.include_router(ui.router)
 
+
+# 请求日志中间件
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """记录所有HTTP请求"""
+    start_time = time.time()
+
+    # 处理请求
+    response = await call_next(request)
+
+    # 计算耗时
+    duration = time.time() - start_time
+
+    # 记录请求（排除静态文件和健康检查）
+    if not request.url.path.startswith("/static") and request.url.path != "/health":
+        request_logger.log_request(
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration=duration,
+            client_ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+            query_params=dict(request.query_params) if request.query_params else None,
+            path_params=request.path_params
+        )
+
+    return response
+
+
 # 全局异常处理
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -99,6 +130,76 @@ async def execute_workflow_api(request: Request):
     workflow_name = body.get("workflow_name") if isinstance(body, dict) else None
 
     return await execute_workflow_by_name(workflow_name, request)
+
+
+# ========== 开发者工具 ==========
+
+@app.get("/api/dev/request-logs")
+async def get_request_logs(limit: int = 50):
+    """获取最近的请求日志"""
+    logs = request_logger.get_recent_logs(limit)
+    return {"logs": logs}
+
+
+@app.get("/api/dev/request-stats")
+async def get_request_stats():
+    """获取请求统计信息"""
+    return request_logger.get_stats()
+
+
+@app.post("/api/dev/request-logs/clear")
+async def clear_request_logs():
+    """清空请求日志"""
+    request_logger.clear()
+    return {"message": "日志已清空"}
+
+
+@app.get("/api/dev/storage-files")
+async def get_storage_files():
+    """获取存储文件列表"""
+    from pathlib import Path
+    import os
+
+    storage_dir = Path("storage")
+    if not storage_dir.exists():
+        return {"files": []}
+
+    files = []
+    for root, dirs, filenames in os.walk(storage_dir):
+        for filename in filenames:
+            filepath = Path(root) / filename
+            stat = filepath.stat()
+            files.append({
+                "name": filename,
+                "path": str(filepath.relative_to(storage_dir)),
+                "size": stat.st_size,
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+
+    return {"files": files}
+
+
+@app.delete("/api/dev/storage-files")
+async def delete_storage_file(request: Request):
+    """删除存储文件"""
+    from pathlib import Path
+
+    body = await request.json()
+    path = body.get("path")
+
+    if not path:
+        return JSONResponse(status_code=400, content={"error": "缺少 path 参数"})
+
+    # 安全检查
+    if ".." in path or path.startswith("/"):
+        return JSONResponse(status_code=400, content={"error": "非法路径"})
+
+    filepath = Path("storage") / path
+    if not filepath.exists():
+        return JSONResponse(status_code=404, content={"error": "文件不存在"})
+
+    filepath.unlink()
+    return {"message": "文件已删除"}
 
 
 def main():

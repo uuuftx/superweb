@@ -103,6 +103,118 @@ async def delete_workflow(workflow_id: int, db: AsyncSession = Depends(get_db)):
     return {"message": "删除成功"}
 
 
+@router.get("/{workflow_id}/export")
+async def export_workflow(workflow_id: int, db: AsyncSession = Depends(get_db)):
+    """导出工作流为 JSON"""
+    # 获取工作流
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
+    workflow = result.scalar_one_or_none()
+    if not workflow:
+        raise HTTPException(status_code=404, detail="工作流不存在")
+
+    # 获取节点
+    nodes_result = await db.execute(
+        select(WorkflowNode).where(WorkflowNode.workflow_id == workflow_id)
+    )
+    nodes = nodes_result.scalars().all()
+
+    # 获取连接
+    conns_result = await db.execute(
+        select(WorkflowConnection).where(WorkflowConnection.workflow_id == workflow_id)
+    )
+    connections = conns_result.scalars().all()
+
+    # 构建导出数据
+    export_data = {
+        "version": "1.0",
+        "workflow": {
+            "name": workflow.name,
+            "description": workflow.description,
+            "enabled": workflow.enabled,
+            "logging_enabled": workflow.logging_enabled
+        },
+        "nodes": [
+            {
+                "node_id": n.node_id,
+                "node_type": n.node_type,
+                "name": n.name,
+                "position_x": n.position_x,
+                "position_y": n.position_y,
+                "config": n.config
+            }
+            for n in nodes
+        ],
+        "connections": [
+            {
+                "source": c.source_node,
+                "target": c.target_node
+            }
+            for c in connections
+        ],
+        "exported_at": datetime.now().isoformat()
+    }
+
+    return export_data
+
+
+class WorkflowImport(BaseModel):
+    """工作流导入数据"""
+    workflow: dict
+    nodes: list[dict]
+    connections: list[dict]
+
+
+@router.post("/import")
+async def import_workflow(data: WorkflowImport, db: AsyncSession = Depends(get_db)):
+    """导入工作流"""
+    # 检查名称是否已存在
+    existing = await db.execute(
+        select(Workflow).where(Workflow.name == data.workflow["name"])
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="工作流名称已存在")
+
+    # 创建工作流
+    workflow = Workflow(
+        name=data.workflow["name"],
+        description=data.workflow.get("description"),
+        enabled=data.workflow.get("enabled", True),
+        logging_enabled=data.workflow.get("logging_enabled", False)
+    )
+    db.add(workflow)
+    await db.flush()  # 获取 workflow ID
+
+    # 创建节点
+    for node_data in data.nodes:
+        node = WorkflowNode(
+            workflow_id=workflow.id,
+            node_id=node_data["node_id"],
+            node_type=node_data["node_type"],
+            name=node_data["name"],
+            position_x=node_data["position_x"],
+            position_y=node_data["position_y"],
+            config=node_data.get("config", {})
+        )
+        db.add(node)
+
+    # 创建连接
+    for conn_data in data.connections:
+        conn = WorkflowConnection(
+            workflow_id=workflow.id,
+            source_node=conn_data["source"],
+            target_node=conn_data["target"]
+        )
+        db.add(conn)
+
+    await db.commit()
+    await db.refresh(workflow)
+
+    return {
+        "message": "导入成功",
+        "workflow": workflow.to_dict()
+    }
+
+
 # ========== 工作流节点和连接 ==========
 
 @router.get("/{workflow_id}/detail")

@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.logs-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    height: calc(100vh - 150px);
+}
+
+.stats-panel, .logs-panel {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stat-card {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 12px;
+}
+
+.stat-card h4 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    color: #718096;
+    text-transform: uppercase;
+}
+
+.stat-card .value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.stat-card.success .value { color: #10b981; }
+.stat-card.warning .value { color: #f59e0b; }
+
+.method-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.method-badge.GET { background: #d1fae5; color: #065f46; }
+.method-badge.POST { background: #dbeafe; color: #1e40af; }
+.method-badge.PUT { background: #fef3c7; color: #92400e; }
+.method-badge.DELETE { background: #fee2e2; color: #991b1b; }
+.method-badge.PATCH { background: #e9d5ff; color: #6b21a8; }
+
+.status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-badge.success { background: #d1fae5; color: #065f46; }
+.status-badge.redirect { background: #fef3c7; color: #92400e; }
+.status-badge.client-error { background: #fed7aa; color: #9a3412; }
+.status-badge.server-error { background: #fee2e2; color: #991b1b; }
+
+.log-item {
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.log-item:hover {
+    background: #f7fafc;
+}
+
+.log-item.selected {
+    background: #edf2f7;
+    border-left: 3px solid #667eea;
+}
+
+.log-detail {
+    background: #1a1a1a;
+    color: #f0f0f0;
+    padding: 15px;
+    border-radius: 8px;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 13px;
+    overflow: auto;
+}
+
+.auto-refresh-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f7fafc;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.toggle-switch {
+    width: 40px;
+    height: 22px;
+    background: #cbd5e0;
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.toggle-switch.active {
+    background: #667eea;
+}
+
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: left 0.2s;
+}
+
+.toggle-switch.active::after {
+    left: 20px;
+}
+</style>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2>📋 请求日志</h2>
+            <p style="color: #718096;">实时查看 API 请求</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <div class="auto-refresh-toggle">
+                <div class="toggle-switch" id="refresh-toggle" onclick="toggleAutoRefresh()"></div>
+                <span>自动刷新</span>
+            </div>
+            <button class="btn" onclick="loadLogs()">🔄 刷新</button>
+            <button class="btn" onclick="clearLogs()" style="background: #fee2e2; color: #991b1b;">清空</button>
+        </div>
+    </div>
+</div>
+
+<div class="logs-container">
+    <!-- 统计面板 -->
+    <div class="stats-panel">
+        <h3 style="margin-top: 0;">统计</h3>
+
+        <div class="stat-card">
+            <h4>总请求数</h4>
+            <div class="value" id="stat-total">-</div>
+        </div>
+
+        <div class="stat-card success">
+            <h4>成功率</h4>
+            <div class="value" id="stat-success">-</div>
+        </div>
+
+        <div class="stat-card">
+            <h4>平均耗时</h4>
+            <div class="value" id="stat-duration">-<span style="font-size: 14px; color: #718096;">ms</span></div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h4 style="font-size: 12px; color: #718096; margin-bottom: 10px;">请求方法</h4>
+            <div id="method-stats"></div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h4 style="font-size: 12px; color: #718096; margin-bottom: 10px;">状态码</h4>
+            <div id="status-stats"></div>
+        </div>
+    </div>
+
+    <!-- 日志面板 -->
+    <div class="logs-panel" style="display: flex; flex-direction: column;">
+        <div style="flex: 1; overflow-y: auto;" id="logs-list">
+            <div style="text-align: center; padding: 40px; color: #a0aec0;">
+                加载中...
+            </div>
+        </div>
+
+        <div id="log-detail" style="display: none; margin-top: 20px;">
+            <h4 style="margin-bottom: 10px;">详细信息</h4>
+            <div class="log-detail" id="log-detail-content"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+let autoRefresh = false;
+let refreshInterval = null;
+let selectedLogId = null;
+
+async function loadLogs() {
+    try {
+        const response = await fetch('/api/dev/request-logs');
+        const data = await response.json();
+
+        renderLogs(data.logs);
+        await loadStats();
+    } catch (error) {
+        console.error('加载失败:', error);
+    }
+}
+
+async function loadStats() {
+    try {
+        const response = await fetch('/api/dev/request-stats');
+        const stats = await response.json();
+
+        document.getElementById('stat-total').textContent = stats.total_requests;
+        document.getElementById('stat-success').textContent = stats.success_rate + '%';
+        document.getElementById('stat-duration').innerHTML = stats.avg_duration_ms + '<span style="font-size: 14px; color: #718096;">ms</span>';
+
+        // 方法统计
+        const methodStats = Object.entries(stats.by_method || {}).map(([method, count]) => `
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px;">
+                <span class="method-badge ${method}">${method}</span>
+                <span style="color: #4a5568;">${count}</span>
+            </div>
+        `).join('');
+        document.getElementById('method-stats').innerHTML = methodStats || '<span style="color: #a0aec0;">暂无数据</span>';
+
+        // 状态码统计
+        const statusStats = Object.entries(stats.by_status || {}).map(([status, count]) => `
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px;">
+                <span class="status-badge ${getStatusClass(status)}">${status}</span>
+                <span style="color: #4a5568;">${count}</span>
+            </div>
+        `).join('');
+        document.getElementById('status-stats').innerHTML = statusStats || '<span style="color: #a0aec0;">暂无数据</span>';
+    } catch (error) {
+        console.error('加载统计失败:', error);
+    }
+}
+
+function renderLogs(logs) {
+    const logsList = document.getElementById('logs-list');
+
+    if (logs.length === 0) {
+        logsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #a0aec0;">暂无日志</div>';
+        return;
+    }
+
+    logsList.innerHTML = logs.map((log, index) => `
+        <div class="log-item ${selectedLogId === index ? 'selected' : ''}" onclick="showLogDetail(${index})">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <span class="method-badge ${log.method}">${log.method}</span>
+                <span style="flex: 1; font-weight: 500; color: #2d3748; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${log.path}</span>
+                <span class="status-badge ${getStatusClass(log.status_code)}">${log.status_code}</span>
+            </div>
+            <div style="display: flex; gap: 15px; font-size: 12px; color: #718096;">
+                <span>⏱ ${log.duration_ms}ms</span>
+                <span>🕐 ${formatTime(log.timestamp)}</span>
+                ${log.client_ip ? `<span>🌐 ${log.client_ip}</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    // 存储日志数据
+    window.currentLogs = logs;
+}
+
+function showLogDetail(index) {
+    selectedLogId = index;
+    const log = window.currentLogs[index];
+
+    const detail = document.getElementById('log-detail');
+    const content = document.getElementById('log-detail-content');
+
+    content.innerHTML = `
+<strong>时间:</strong> ${log.timestamp}
+<strong>方法:</strong> ${log.method}
+<strong>路径:</strong> ${log.path}
+<strong>状态码:</strong> ${log.status_code}
+<strong>耗时:</strong> ${log.duration_ms}ms
+<strong>客户端:</strong> ${log.client_ip || 'N/A'}
+<strong>User-Agent:</strong> ${log.user_agent || 'N/A'}
+
+<strong>查询参数:</strong>
+${log.query_params ? JSON.stringify(log.query_params, null, 2) : '(无)'}
+
+<strong>路径参数:</strong>
+${log.path_params ? JSON.stringify(log.path_params, null, 2) : '(无)'}
+    `.trim();
+
+    detail.style.display = 'block';
+
+    // 更新选中状态
+    document.querySelectorAll('.log-item').forEach((item, i) => {
+        item.classList.toggle('selected', i === index);
+    });
+}
+
+function getStatusClass(status) {
+    if (status >= 200 && status < 300) return 'success';
+    if (status >= 300 && status < 400) return 'redirect';
+    if (status >= 400 && status < 500) return 'client-error';
+    if (status >= 500) return 'server-error';
+    return '';
+}
+
+function formatTime(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('zh-CN');
+}
+
+function toggleAutoRefresh() {
+    autoRefresh = !autoRefresh;
+    const toggle = document.getElementById('refresh-toggle');
+
+    if (autoRefresh) {
+        toggle.classList.add('active');
+        refreshInterval = setInterval(loadLogs, 2000);
+        showToast('自动刷新', '已开启（每2秒）', 'info');
+    } else {
+        toggle.classList.remove('active');
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+        showToast('自动刷新', '已关闭', 'info');
+    }
+}
+
+async function clearLogs() {
+    if (!confirm('确定要清空所有日志吗？')) return;
+
+    try {
+        await fetch('/api/dev/request-logs/clear', { method: 'POST' });
+        showToast('已清空', '日志已清空', 'success');
+        selectedLogId = null;
+        document.getElementById('log-detail').style.display = 'none';
+        loadLogs();
+    } catch (error) {
+        showToast('清空失败', error.message, 'error');
+    }
+}
+
+// 初始加载
+loadLogs();
+
+// 页面卸载时清理
+window.addEventListener('beforeunload', () => {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+</script>
+{% endblock %}

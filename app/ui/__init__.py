@@ -37,3 +37,21 @@ async def workflow_logs_page(request: Request):
 async def database_configs_page(request: Request):
     """数据库配置管理页面"""
     return templates.TemplateResponse("database_configs.html", {"request": request})
+
+
+@router.get("/api-tester", response_class=HTMLResponse)
+async def api_tester_page(request: Request):
+    """API测试工具页面"""
+    return templates.TemplateResponse("api_tester.html", {"request": request})
+
+
+@router.get("/request-logs", response_class=HTMLResponse)
+async def request_logs_page(request: Request):
+    """请求日志查看页面"""
+    return templates.TemplateResponse("request_logs.html", {"request": request})
+
+
+@router.get("/dev-tools", response_class=HTMLResponse)
+async def dev_tools_page(request: Request):
+    """开发者工具页面"""
+    return templates.TemplateResponse("dev_tools.html", {"request": request})
