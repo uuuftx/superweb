@@ -1,4 +1,11 @@
-"""端点执行器"""
+"""端点执行器
+
+优化说明：
+1. 缓存模块导入和执行环境，避免每次执行都重新导入
+2. 移除未使用的图形工作流相关代码
+3. 修复重复代码和错误处理
+4. 添加节点执行时长记录
+"""
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +16,174 @@ import importlib
 from typing import Any
 from datetime import datetime
 import uuid
+from functools import lru_cache
+from pathlib import Path
 
 from app.models.endpoint import Endpoint
 from app.models.datamodel import DataModel
 from app.core.database import async_session_maker
 
+
+# ==================== 执行环境缓存 ====================
+
+@lru_cache(maxsize=1)
+def _get_cached_modules():
+    """缓存常用模块导入，避免每次执行都重新导入"""
+    return {
+        "os": __import__("os"),
+        "sys": __import__("sys"),
+        "datetime": __import__("datetime"),
+        "time": __import__("time"),
+        "uuid": __import__("uuid"),
+        "random": __import__("random"),
+        "re": __import__("re"),
+        "hashlib": __import__("hashlib"),
+        "base64": __import__("base64"),
+        "math": __import__("math"),
+        "collections": __import__("collections"),
+        "itertools": __import__("itertools"),
+        "functools": __import__("functools"),
+        "typing": __import__("typing"),
+        "copy": __import__("copy"),
+        "decimal": __import__("decimal"),
+        "statistics": __import__("statistics"),
+        "pickle": __import__("pickle"),
+        "urllib": __import__("urllib"),
+        "html": __import__("html"),
+        "xml": __import__("xml"),
+        "sqlite3": __import__("sqlite3"),
+        "logging": __import__("logging"),
+        "dataclasses": __import__("dataclasses"),
+        "enum": __import__("enum"),
+        "numbers": __import__("numbers"),
+        "ipaddress": __import__("ipaddress"),
+        "pathlib": __import__("pathlib"),
+        "string": __import__("string"),
+        "textwrap": __import__("textwrap"),
+        "fractions": __import__("fractions"),
+    }
+
+
+@lru_cache(maxsize=1)
+def _get_optional_modules():
+    """缓存可选模块导入"""
+    modules = {"dateutil": None, "httpx": None}
+    for name in modules:
+        try:
+            if importlib.util.find_spec(name):
+                modules[name] = __import__(name)
+        except:
+            pass
+    return modules
+
+
+def _create_execution_globals(data, context, node_num, node_name):
+    """创建 Python 代码执行的全局变量环境"""
+    cached_modules = _get_cached_modules()
+    optional_modules = _get_optional_modules()
+
+    _os = cached_modules["os"]
+    _sys = cached_modules["sys"]
+    _datetime = cached_modules["datetime"]
+    _time = cached_modules["time"]
+    _uuid = cached_modules["uuid"]
+    _random = cached_modules["random"]
+    _re = cached_modules["re"]
+    _hashlib = cached_modules["hashlib"]
+    _base64 = cached_modules["base64"]
+    _math = cached_modules["math"]
+    _collections = cached_modules["collections"]
+    _itertools = cached_modules["itertools"]
+    _functools = cached_modules["functools"]
+    _typing = cached_modules["typing"]
+    _copy = cached_modules["copy"]
+    _decimal = cached_modules["decimal"]
+    _statistics = cached_modules["statistics"]
+    _pickle = cached_modules["pickle"]
+    _urllib = cached_modules["urllib"]
+    _html = cached_modules["html"]
+    _xml = cached_modules["xml"]
+    _sqlite3 = cached_modules["sqlite3"]
+    _logging = cached_modules["logging"]
+    _dataclasses = cached_modules["dataclasses"]
+    _enum = cached_modules["enum"]
+    _numbers = cached_modules["numbers"]
+    _ipaddress = cached_modules["ipaddress"]
+    _pathlib = cached_modules["pathlib"]
+    _string = cached_modules["string"]
+    _textwrap = cached_modules["textwrap"]
+    _fractions = cached_modules["fractions"]
+
+    return {
+        "__builtins__": {
+            # 基础类型和函数
+            "print": print, "len": len, "str": str, "int": int, "float": float,
+            "bool": bool, "dict": dict, "list": list, "tuple": tuple, "set": set,
+            "frozenset": frozenset, "bytearray": bytearray, "bytes": bytes, "memoryview": memoryview,
+            # 函数
+            "range": range, "enumerate": enumerate, "zip": zip, "map": map,
+            "filter": filter, "sorted": sorted, "reversed": reversed,
+            "any": any, "all": all, "max": max, "min": min, "sum": sum,
+            "abs": abs, "round": round, "divmod": divmod, "pow": pow,
+            "hash": hash, "ord": ord, "chr": chr, "bin": bin, "hex": hex,
+            "oct": oct, "complex": complex,
+            # 常用模块
+            "json": json, "datetime": _datetime, "time": _time, "uuid": _uuid,
+            "random": _random, "re": _re, "hashlib": _hashlib, "base64": _base64,
+            "math": _math, "collections": _collections, "itertools": _itertools,
+            "functools": _functools, "typing": _typing,
+            # 数据处理
+            "Counter": _collections.Counter, "defaultdict": _collections.defaultdict,
+            "OrderedDict": _collections.OrderedDict, "deque": _collections.deque,
+            # import 支持
+            "__import__": __import__, "ImportError": ImportError,
+            # 文件和路径
+            "os": _os, "sys": _sys, "pathlib": _pathlib, "Path": _pathlib.Path,
+            # 字符串和文本
+            "string": _string, "textwrap": _textwrap,
+            # 数据处理
+            "copy": _copy, "decimal": _decimal, "Decimal": _decimal.Decimal,
+            "fractions": _fractions, "Fraction": _fractions.Fraction,
+            # 数据统计
+            "statistics": _statistics,
+            # 序列化
+            "pickle": _pickle,
+            # 网络相关
+            "urllib": _urllib,
+            # HTML/XML
+            "html": _html, "xml": _xml,
+            # 数据库
+            "sqlite3": _sqlite3,
+            # 日志
+            "logging": _logging,
+            # 数据类
+            "dataclasses": _dataclasses,
+            # 枚举
+            "enum": _enum,
+            # 数字抽象
+            "numbers": _numbers,
+            # IP地址
+            "ipaddress": _ipaddress,
+            # 可选模块
+            "dateutil": optional_modules["dateutil"],
+            "httpx": optional_modules["httpx"],
+            # 环境变量
+            "environ": _os.environ,
+        },
+        # 上下文变量
+        "request": context.get("request"),
+        "data": data,
+        "context": context,
+        # 当前节点信息
+        "node": node_num,
+        "node_name": node_name,
+        # 工具模块（顶层访问）
+        "datetime": _datetime, "time": _time, "uuid": _uuid, "json": json,
+        "re": _re, "hashlib": _hashlib, "base64": _base64, "math": _math, "random": _random,
+    }
+
+
+# ==================== 端点执行 ====================
 
 async def execute_endpoint(endpoint: Endpoint, request: Request, path_params: dict = None):
     """
@@ -48,19 +218,23 @@ async def execute_endpoint(endpoint: Endpoint, request: Request, path_params: di
     }
 
     # 根据逻辑类型执行
-    if endpoint.logic_type == "simple":
-        result = await _execute_simple(endpoint, context)
-    elif endpoint.logic_type == "workflow":
-        result = await _execute_workflow(endpoint, context)
-    elif endpoint.logic_type == "crud":
-        result = await _execute_crud(endpoint, context)
-    elif endpoint.logic_type == "custom":
-        result = await _execute_custom_code(endpoint, context)
+    dispatch_map = {
+        "simple": _execute_simple,
+        "workflow": _execute_workflow,
+        "crud": _execute_crud,
+        "custom": _execute_custom_code,
+    }
+
+    executor = dispatch_map.get(endpoint.logic_type)
+    if executor:
+        result = await executor(endpoint, context)
     else:
         result = {"error": f"未知逻辑类型: {endpoint.logic_type}"}
 
     return result
 
+
+# ==================== 工作流执行 ====================
 
 async def execute_python_workflow_with_logging(node_map, context, workflow_id, workflow_name, enable_logging=True):
     """
@@ -95,10 +269,7 @@ async def execute_python_workflow_with_logging(node_map, context, workflow_id, w
     try:
         # 执行工作流
         current_node_num = 1
-        current_data = {
-            "request": context.get("request"),
-            "context": context
-        }
+        current_data = {}
         visited = set()
         max_iterations = 1000
         iterations = 0
@@ -126,10 +297,11 @@ async def execute_python_workflow_with_logging(node_map, context, workflow_id, w
             node = node_map[current_node_num]
 
             # 记录节点执行开始
+            node_start_time = datetime.now()
             node_log = {
                 "node_number": current_node_num,
                 "node_name": node.name,
-                "start_time": datetime.now().isoformat(),
+                "start_time": node_start_time.isoformat(),
             }
 
             # 执行节点
@@ -144,10 +316,15 @@ async def execute_python_workflow_with_logging(node_map, context, workflow_id, w
             try:
                 node_result = await execute_python_node(node, current_data, context)
 
+                # 计算节点执行时长
+                node_end_time = datetime.now()
+                node_duration = (node_end_time - node_start_time).total_seconds()
+
                 # 记录节点执行成功
                 node_log.update({
                     "status": "success",
-                    "end_time": datetime.now().isoformat(),
+                    "end_time": node_end_time.isoformat(),
+                    "duration": node_duration,
                     "next_node": node_result.get('next_node', 0),
                     "output": str(node_result.get('result', {}))[:500]  # 只保留前500字符
                 })
@@ -157,10 +334,15 @@ async def execute_python_workflow_with_logging(node_map, context, workflow_id, w
                 error_msg = str(e)
                 error_tb = traceback.format_exc()
 
+                # 计算节点执行时长
+                node_end_time = datetime.now()
+                node_duration = (node_end_time - node_start_time).total_seconds()
+
                 # 记录节点执行失败
                 node_log.update({
                     "status": "error",
-                    "end_time": datetime.now().isoformat(),
+                    "end_time": node_end_time.isoformat(),
+                    "duration": node_duration,
                     "error": error_msg,
                     "traceback": error_tb
                 })
@@ -241,12 +423,217 @@ async def execute_python_workflow_with_logging(node_map, context, workflow_id, w
         return error_result
 
 
+async def execute_python_workflow(node_map, context):
+    """
+    执行 Python 脚本工作流
+
+    Args:
+        node_map: {node_number: node} 节点编号到节点的映射
+        context: 请求上下文
+
+    Returns:
+        最终执行结果
+    """
+    current_node_num = 1
+    current_data = {}
+    visited = set()
+    max_iterations = 1000  # 防止无限循环
+    iterations = 0
+
+    while iterations < max_iterations:
+        iterations += 1
+
+        # 检查节点是否存在
+        if current_node_num not in node_map:
+            return {
+                "message": f"工作流结束：节点 {current_node_num} 不存在",
+                "final_node": current_node_num - 1,
+                "data": current_data
+            }
+
+        # 检查循环
+        if current_node_num in visited:
+            return {
+                "error": f"检测到循环：节点 {current_node_num} 已访问",
+                "current_node": current_node_num,
+                "data": current_data
+            }
+
+        visited.add(current_node_num)
+        node = node_map[current_node_num]
+
+        # 获取节点代码
+        code = node.config.get('code', '')
+        if not code:
+            return {
+                "error": f"节点 {current_node_num} 没有代码",
+                "node": current_node_num
+            }
+
+        # 执行 Python 脚本
+        try:
+            result = await execute_python_node(node, current_data, context)
+        except Exception as e:
+            import traceback
+            return {
+                "error": f"节点 {current_node_num} 执行失败: {str(e)}",
+                "node": current_node_num,
+                "traceback": traceback.format_exc()
+            }
+
+        # 从结果中获取下一个节点和数据
+        next_node = result.get('next_node', 0)
+        current_data = result.get('data', current_data)
+
+        # 如果 next_node 是 0 或不存在，结束流程
+        if next_node <= 0 or next_node not in node_map:
+            return {
+                "message": "工作流执行完成",
+                "final_node": current_node_num,
+                "data": current_data,
+                "iterations": iterations
+            }
+
+        # 继续执行下一个节点
+        current_node_num = next_node
+
+    return {
+        "error": "工作流超过最大迭代次数",
+        "iterations": iterations
+    }
+
+
+async def execute_python_node(node, data, context):
+    """
+    执行 Python 节点
+
+    Args:
+        node: 工作流节点
+        data: 输入数据
+        context: 请求上下文
+
+    Returns:
+        执行结果 {next_node: int, data: dict}
+    """
+    code = node.config.get('code', '')
+    node_num = int(node.position_x / 200)
+
+    # 创建执行环境（使用缓存的模块）
+    exec_globals = _create_execution_globals(data, context, node_num, node.name)
+
+    # 注入激活的数据库连接
+    from app.core.database import get_all_active_db_configs
+    try:
+        active_dbs = await get_all_active_db_configs()
+        for db_name, db_info in active_dbs.items():
+            # 获取session maker，注入一个便捷的获取连接的方法
+            session_maker = db_info["session_maker"]
+            if session_maker:
+                # 创建一个便捷的连接获取对象
+                class DBConnection:
+                    def __init__(self, session_maker):
+                        self._session_maker = session_maker
+
+                    async def acquire(self):
+                        """获取数据库连接"""
+                        return self._session_maker()
+
+                    async def execute(self, query, params=None):
+                        """便捷的执行方法"""
+                        async with self._session_maker() as session:
+                            from sqlalchemy import text
+                            stmt = text(query)
+                            if params:
+                                stmt = stmt.bindparams(**params)
+                            result = await session.execute(stmt)
+                            await session.commit()  # 显式提交
+                            # 尝试获取所有行，如果不返回行则返回受影响的行数
+                            try:
+                                return result.fetchall()
+                            except:
+                                # INSERT/UPDATE/DELETE 等不返回行的语句
+                                return result.rowcount
+
+                exec_globals[db_name] = DBConnection(session_maker)
+
+                # 如果是默认配置，额外注入为 'db'
+                if db_info["config"].is_default:
+                    exec_globals["db"] = DBConnection(session_maker)
+    except Exception as e:
+        # 数据库连接注入失败不影响脚本执行
+        import logging
+        logging.warning(f"数据库连接注入失败: {e}")
+
+    # 检测是否包含异步代码
+    is_async = any(keyword in code for keyword in ['async ', 'await ', 'async with'])
+
+    if is_async:
+        # 将代码包装为异步函数并执行
+        lines = []
+        for line in code.split('\n'):
+            if line.strip():  # 非空行添加缩进
+                lines.append('    ' + line)
+            else:  # 空行保持原样
+                lines.append(line)
+
+        indented_code = '\n'.join(lines)
+
+        # 包装成异步函数
+        wrapped_code = (
+            'async def _execute_async_node(data, context, node, node_name):\n'
+            + indented_code + '\n'
+            + '    # 返回关键变量\n'
+            + '    _result = {}\n'
+            + '    try:\n'
+            + '        _result["next_node"] = next_node\n'
+            + '    except:\n'
+            + '        _result["next_node"] = 0\n'
+            + '    try:\n'
+            + '        _result["result"] = result\n'
+            + '    except:\n'
+            + '        pass\n'
+            + '    try:\n'
+            + '        _result["response"] = response\n'
+            + '    except:\n'
+            + '        pass\n'
+            + '    try:\n'
+            + '        _result["data"] = data\n'
+            + '    except:\n'
+            + '        pass\n'
+            + '    return _result\n'
+        )
+
+        # 编译并执行包装后的代码
+        exec(wrapped_code, exec_globals)
+
+        # 获取异步函数并执行
+        async_func = exec_globals.get('_execute_async_node')
+        if async_func:
+            async_locals = await async_func(data, context, None, node.name)
+            # 将返回的变量合并到全局变量
+            for key, value in async_locals.items():
+                if value is not None and key != 'data':  # 避免覆盖输入的 data
+                    exec_globals[key] = value
+    else:
+        # 执行同步代码
+        exec(code, exec_globals)
+
+    # 获取返回值
+    next_node = exec_globals.get('next_node', 0)
+    # 获取返回数据，优先级: response > result > data(来自exec_globals)
+    result_data = exec_globals.get('response') or exec_globals.get('result') or exec_globals.get('data') or data
+
+    return {
+        "next_node": next_node,
+        "data": result_data,
+        "node": node_num
+    }
+
+
+# ==================== 日志处理 ====================
+
 async def save_execution_log(log_data):
     """保存执行日志到文件系统"""
-    import os
-    import json
-    from pathlib import Path
-
     # 创建日志目录
     log_dir = Path("storage/workflow_logs")
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -275,8 +662,6 @@ async def save_execution_log(log_data):
 
 def format_execution_log(log_data):
     """格式化执行日志为可读文本"""
-    from datetime import datetime
-
     lines = []
     lines.append("=" * 80)
     lines.append("工作流执行日志")
@@ -384,37 +769,7 @@ def format_execution_log(log_data):
     return '\n'.join(lines)
 
 
-async def execute_python_workflow(node_map, context):
-    """执行端点逻辑"""
-
-    # 获取请求参数
-    if endpoint.method in ["POST", "PUT", "PATCH"]:
-        body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-    else:
-        body = {}
-
-    query_params = dict(request.query_params)
-    headers = dict(request.headers)
-
-    # 合并所有参数
-    context = {
-        "path": path_params,
-        "query": query_params,
-        "body": body,
-        "headers": headers,
-        "request": request,
-    }
-
-    # 根据逻辑类型执行
-    if endpoint.logic_type == "simple":
-        return await _execute_simple(endpoint, context)
-    elif endpoint.logic_type == "workflow":
-        return await _execute_workflow(endpoint, context)
-    elif endpoint.logic_type == "crud":
-        return await _execute_crud(endpoint, context)
-    else:
-        raise ValueError(f"未知的逻辑类型: {endpoint.logic_type}")
-
+# ==================== 端点逻辑执行器 ====================
 
 async def _execute_simple(endpoint: Endpoint, context: dict) -> Any:
     """执行简单逻辑（自定义代码或固定响应）"""
@@ -453,10 +808,10 @@ async def _execute_workflow(endpoint: Endpoint, context: dict) -> Any:
         if not nodes:
             return {"error": "工作流为空"}
 
-        # 构建节点映射 - 按节点编号索引
+        # 构建节点映射 - 按节点编号索引（从 position_x 计算）
         node_map = {}
         for node in nodes:
-            node_num = int(node.node_id.split('_')[1]) if node.node_id.startswith('node_') else int(node.position_x / 200)
+            node_num = int(node.position_x / 200)
             node_map[node_num] = node
 
         # 从节点1开始执行
@@ -466,719 +821,6 @@ async def _execute_workflow(endpoint: Endpoint, context: dict) -> Any:
         except Exception as e:
             import traceback
             return {"error": str(e), "traceback": traceback.format_exc()}
-
-
-async def execute_python_workflow(node_map, context):
-    """
-    执行 Python 脚本工作流
-
-    Args:
-        node_map: {node_number: node} 节点编号到节点的映射
-        context: 请求上下文
-
-    Returns:
-        最终执行结果
-    """
-    current_node_num = 1
-    current_data = {
-        "request": context.get("request"),
-        "context": context
-    }
-    visited = set()
-    max_iterations = 1000  # 防止无限循环
-    iterations = 0
-
-    while iterations < max_iterations:
-        iterations += 1
-
-        # 检查节点是否存在
-        if current_node_num not in node_map:
-            return {
-                "message": f"工作流结束：节点 {current_node_num} 不存在",
-                "final_node": current_node_num - 1,
-                "data": current_data
-            }
-
-        # 检查循环
-        if current_node_num in visited:
-            return {
-                "error": f"检测到循环：节点 {current_node_num} 已访问",
-                "current_node": current_node_num,
-                "data": current_data
-            }
-
-        visited.add(current_node_num)
-        node = node_map[current_node_num]
-
-        # 获取节点代码
-        code = node.config.get('code', '')
-        if not code:
-            return {
-                "error": f"节点 {current_node_num} 没有代码",
-                "node": current_node_num
-            }
-
-        # 执行 Python 脚本
-        try:
-            result = await execute_python_node(node, current_data, context)
-        except Exception as e:
-            import traceback
-            return {
-                "error": f"节点 {current_node_num} 执行失败: {str(e)}",
-                "node": current_node_num,
-                "traceback": traceback.format_exc()
-            }
-
-        # 从结果中获取下一个节点和数据
-        next_node = result.get('next_node', 0)
-        current_data = result.get('data', current_data)
-
-        # 如果 next_node 是 0 或不存在，结束流程
-        if next_node <= 0 or next_node not in node_map:
-            return {
-                "message": "工作流执行完成",
-                "final_node": current_node_num,
-                "data": current_data,
-                "iterations": iterations
-            }
-
-        # 继续执行下一个节点
-        current_node_num = next_node
-
-    return {
-        "error": "工作流超过最大迭代次数",
-        "iterations": iterations
-    }
-
-
-async def execute_python_node(node, data, context):
-    """
-    执行 Python 节点
-
-    Args:
-        node: 工作流节点
-        data: 输入数据
-        context: 请求上下文
-
-    Returns:
-        执行结果 {next_node: int, data: dict}
-    """
-    code = node.config.get('code', '')
-    node_num = int(node.node_id.split('_')[1]) if node.node_id.startswith('node_') else int(node.position_x / 200)
-
-    # 准备执行环境 - 直接执行，不使用沙箱
-    exec_globals = {
-        # Python 内置函数和模块
-        "__builtins__": {
-            # 基础类型和函数
-            "print": print,
-            "len": len,
-            "str": str,
-            "int": int,
-            "float": float,
-            "bool": bool,
-            "dict": dict,
-            "list": list,
-            "tuple": tuple,
-            "set": set,
-            "frozenset": frozenset,
-            "bytearray": bytearray,
-            "bytes": bytes,
-            "memoryview": memoryview,
-            # 函数
-            "range": range,
-            "enumerate": enumerate,
-            "zip": zip,
-            "map": map,
-            "filter": filter,
-            "sorted": sorted,
-            "reversed": reversed,
-            "any": any,
-            "all": all,
-            "max": max,
-            "min": min,
-            "sum": sum,
-            "abs": abs,
-            "round": round,
-            "divmod": divmod,
-            "pow": pow,
-            "hash": hash,
-            "ord": ord,
-            "chr": chr,
-            "bin": bin,
-            "hex": hex,
-            "oct": oct,
-            "bool": bool,
-            "complex": complex,
-            "float": float,
-            "int": int,
-            "str": str,
-            "list": list,
-            "tuple": tuple,
-            "dict": dict,
-            "set": set,
-            "frozenset": frozenset,
-            # 常用模块
-            "json": json,
-            "datetime": __import__("datetime"),
-            "time": __import__("time"),
-            "uuid": __import__("uuid"),
-            "random": __import__("random"),
-            "re": __import__("re"),
-            "hashlib": __import__("hashlib"),
-            "base64": __import__("base64"),
-            "math": __import__("math"),
-            "collections": __import__("collections"),
-            "itertools": __import__("itertools"),
-            "functools": __import__("functools"),
-            "typing": __import__("typing"),
-            # 数据处理
-            "Counter": __import__("collections").Counter,
-            "defaultdict": __import__("collections").defaultdict,
-            "OrderedDict": __import__("collections").OrderedDict,
-            "deque": __import__("collections").deque,
-            # import 支持和更多常用库
-            "__import__": __import__,
-            "ImportError": ImportError,
-            # 文件和路径
-            "os": __import__("os"),
-            "sys": __import__("sys"),
-            "pathlib": __import__("pathlib"),
-            "Path": __import__("pathlib").Path,
-            # 字符串和文本
-            "string": __import__("string"),
-            "textwrap": __import__("textwrap"),
-            # 数据处理
-            "copy": __import__("copy"),
-            "decimal": __import__("decimal"),
-            "Decimal": __import__("decimal").Decimal,
-            "fractions": __import__("fractions"),
-            "Fraction": __import__("fractions").Fraction,
-            # 数据统计
-            "statistics": __import__("statistics"),
-            # 序列化
-            "pickle": __import__("pickle"),
-            # 网络相关
-            "urllib": __import__("urllib"),
-            "urllib.parse": __import__("urllib.parse"),
-            # HTML/XML
-            "html": __import__("html"),
-            "xml": __import__("xml"),
-            # 数据库
-            "sqlite3": __import__("sqlite3"),
-            # 日志
-            "logging": __import__("logging"),
-            # 类型提示
-            "typing": __import__("typing"),
-            # 数据类
-            "dataclasses": __import__("dataclasses"),
-            # 枚举
-            "enum": __import__("enum"),
-            # 数字抽象
-            "numbers": __import__("numbers"),
-            # IP地址
-            "ipaddress": __import__("ipaddress"),
-            # 日期时间增强
-            "dateutil": __import__("dateutil") if __import__("importlib").util.find_spec("dateutil") else None,
-            # HTTP客户端
-            "httpx": __import__("httpx") if __import__("importlib").util.find_spec("httpx") else None,
-            # 环境变量
-            "environ": __import__("os").environ,
-        },
-        # 上下文变量
-        "request": context.get("request"),
-        "data": data,
-        "context": context,
-        # 当前节点信息
-        "node": node_num,
-        "node_name": node.name,
-        # 工具模块
-        "datetime": __import__("datetime"),
-        "time": __import__("time"),
-        "uuid": __import__("uuid"),
-        "json": json,
-        "re": __import__("re"),
-        "hashlib": __import__("hashlib"),
-        "base64": __import__("base64"),
-        "math": __import__("math"),
-        "random": __import__("random"),
-    }
-
-    # 执行代码
-    exec(code, exec_globals)
-
-    # 获取返回值
-    next_node = exec_globals.get('next_node', 0)
-    result_data = exec_globals.get('result', data)
-    result = exec_globals.get('response', result_data)
-
-    return {
-        "next_node": next_node,
-        "data": result,
-        "node": node_num
-    }
-
-
-async def execute_workflow_graph(start_node, node_map, graph, context):
-    """
-    执行工作流图
-
-    Args:
-        start_node: 开始节点
-        node_map: 节点ID到节点的映射
-        graph: 邻接表 {node_id: [next_node_ids]}
-        context: 请求上下文
-    """
-
-    # 当前数据
-    current_data = {
-        "request": context,
-        "context": context
-    }
-
-    # 执行栈，用于深度优先遍历
-    # 格式: [(node_id, data)]
-    stack = [(start_node.node_id, current_data)]
-
-    # 已访问节点，防止循环
-    visited = set()
-
-    # 执行结果
-    final_result = None
-
-    while stack:
-        node_id, data = stack.pop(0)
-
-        if node_id in visited:
-            continue
-
-        visited.add(node_id)
-        node = node_map.get(node_id)
-
-        if not node:
-            continue
-
-        # 执行节点
-        node_result = await execute_node(node, data, context)
-
-        # 如果是 end 节点，保存最终结果
-        if node.node_type == 'end':
-            final_result = node_result
-
-        # 获取下一个节点
-        next_nodes = graph.get(node_id, [])
-
-        if not next_nodes:
-            continue
-
-        if node.node_type == 'branch':
-            # 分支节点：根据条件选择路径
-            condition_result = node_result.get('condition_result', False)
-
-            # 找到 true 和 false 分支
-            # 这里假设分支后面连接两个节点，第一个是 true，第二个是 false
-            # 或者根据节点名称/配置来判断
-            if condition_result and len(next_nodes) > 0:
-                stack.append((next_nodes[0], node_result.get('data', node_result)))
-            elif not condition_result and len(next_nodes) > 1:
-                stack.append((next_nodes[1], node_result.get('data', node_result)))
-            else:
-                # 默认行为
-                for next_node in next_nodes:
-                    stack.append((next_node, node_result.get('data', node_result)))
-        elif node.node_type == 'parallel':
-            # 并行节点：并行执行所有下游节点
-            results = []
-            for next_node in next_nodes:
-                results.append(await execute_workflow_from_node(
-                    next_node, node_map, graph,
-                    node_result.get('data', node_result),
-                    context, visited.copy()
-                ))
-            node_result['parallel_results'] = results
-        else:
-            # 普通节点：依次处理所有下游节点
-            for next_node in next_nodes:
-                stack.append((next_node, node_result.get('data', node_result)))
-
-    return final_result or {"message": "Workflow executed", "data": current_data}
-
-
-async def execute_workflow_from_node(node_id, node_map, graph, data, context, visited):
-    """从指定节点开始执行工作流（用于并行执行）"""
-    stack = [(node_id, data)]
-    result = None
-
-    while stack:
-        current_id, current_data = stack.pop(0)
-
-        if current_id in visited:
-            continue
-
-        visited.add(current_id)
-        node = node_map.get(current_id)
-
-        if not node:
-            continue
-
-        node_result = await execute_node(node, current_data, context)
-
-        if node.node_type == 'end':
-            result = node_result
-            break
-
-        next_nodes = graph.get(current_id, [])
-        for next_node in next_nodes:
-            stack.append((next_node, node_result.get('data', node_result)))
-
-    return result
-
-
-async def execute_node(node, data, context):
-    """
-    执行单个节点
-
-    Args:
-        node: 工作流节点
-        data: 输入数据
-        context: 请求上下文
-
-    Returns:
-        节点执行结果
-    """
-    node_type = node.node_type
-    config = node.config or {}
-
-    if node_type == 'start':
-        # 请求接收节点
-        return {
-            "data": {
-                "path": context.get("path", {}),
-                "query": context.get("query", {}),
-                "headers": context.get("headers", {}),
-                "body": context.get("body", {}),
-                "request": context.get("request")
-            },
-            "message": "请求已接收"
-        }
-
-    elif node_type == 'end':
-        # 响应返回节点
-        status_code = config.get('status_code', 200)
-        body_template = config.get('body_template', '{}')
-
-        # 渲染响应模板
-        try:
-            response_data = data
-            if isinstance(body_template, str):
-                # 使用 JSON 模板
-                template_json = json.loads(body_template)
-                response_data = _render_template(template_json, {"data": data, "context": context})
-            else:
-                response_data = body_template
-        except:
-            response_data = data
-
-        return {
-            "status_code": status_code,
-            "data": response_data,
-            "headers": config.get('headers', {})
-        }
-
-    elif node_type == 'branch':
-        # 分支判断节点
-        condition = config.get('condition', 'True')
-
-        # 准备执行环境
-        exec_globals = {
-            "data": data,
-            "request": context.get("request"),
-            "context": context,
-            "__builtins__": {
-                "print": print,
-                "len": len,
-                "str": str,
-                "int": int,
-                "float": float,
-                "bool": bool,
-                "dict": dict,
-                "list": list,
-                "json": json,
-            }
-        }
-
-        # 执行条件判断
-        try:
-            exec(f"_condition_result = {condition}", exec_globals)
-            condition_result = exec_globals.get("_condition_result", False)
-        except Exception as e:
-            condition_result = False
-
-        return {
-            "condition_result": condition_result,
-            "data": data
-        }
-
-    elif node_type == 'parallel':
-        # 并行执行节点
-        return {
-            "data": data,
-            "parallel": True
-        }
-
-    elif node_type == 'python':
-        # Python 脚本节点
-        code = config.get('code', '')
-
-        # 准备执行环境
-        exec_globals = {
-            "data": data,
-            "request": context.get("request"),
-            "context": context,
-            "__builtins__": {
-                "print": print,
-                "len": len,
-                "str": str,
-                "int": int,
-                "float": float,
-                "bool": bool,
-                "dict": dict,
-                "list": list,
-                "tuple": tuple,
-                "set": set,
-                "range": range,
-                "enumerate": enumerate,
-                "zip": zip,
-                "map": map,
-                "filter": filter,
-                "sorted": sorted,
-                "sum": sum,
-                "max": max,
-                "min": min,
-                "abs": abs,
-                "round": round,
-                "json": json,
-                "datetime": __import__("datetime"),
-                "uuid": __import__("uuid"),
-                "re": __import__("re"),
-                "hashlib": __import__("hashlib"),
-                "base64": __import__("base64"),
-                "time": __import__("time"),
-            }
-        }
-
-        # 执行 Python 代码
-        try:
-            exec(code, exec_globals)
-            result = exec_globals.get("result", data)
-        except Exception as e:
-            raise RuntimeError(f"Python 节点执行错误 ({node.name}): {str(e)}")
-
-        return {
-            "data": result,
-            "message": f"Python 脚本执行完成"
-        }
-
-    elif node_type == 'transform':
-        # 数据转换节点
-        transform_type = config.get('transform_type', 'map')
-
-        if transform_type == 'map':
-            mapping = config.get('mapping', {})
-            result = data
-            if isinstance(data, dict):
-                for old_key, new_key in mapping.items():
-                    if old_key in data:
-                        result[new_key] = data[old_key]
-
-        elif transform_type == 'template':
-            template = config.get('template', '')
-            result = _render_template(template, {"data": data})
-
-        return {
-            "data": result,
-            "transformed": True
-        }
-
-    elif node_type == 'validate':
-        # 数据验证节点
-        schema = config.get('schema', '{}')
-        rules = config.get('rules', [])
-
-        try:
-            schema_dict = json.loads(schema) if isinstance(schema, str) else schema
-        except:
-            schema_dict = {}
-
-        # 简单验证：检查必填字段
-        is_valid = True
-        errors = []
-
-        if isinstance(data, dict):
-            for field, required in schema_dict.items():
-                if required and field not in data:
-                    is_valid = False
-                    errors.append(f"缺少必填字段: {field}")
-
-        return {
-            "data": data if is_valid else {"validation_errors": errors},
-            "valid": is_valid
-        }
-
-    elif node_type == 'database':
-        # 数据库操作节点
-        operation = config.get('operation', 'query')
-        table_name = config.get('table', '')
-
-        if not table_name:
-            raise ValueError("数据库节点需要指定 table_name")
-
-        from app.core.database import engine
-        from sqlalchemy import Table, MetaData, select, insert, update, delete, text
-
-        metadata = MetaData()
-
-        async with engine.begin() as conn:
-            table = Table(table_name, metadata, autoload_with=conn)
-
-            if operation == 'query' or operation == 'get':
-                # 查询操作
-                if isinstance(data, dict) and 'id' in data:
-                    stmt = select(table).where(table.c.id == data['id'])
-                    result = await conn.execute(stmt)
-                    row = result.fetchone()
-                    result_data = {col.name: getattr(row, col.name) for col in table.columns} if row else None
-                else:
-                    stmt = select(table)
-                    result = await conn.execute(stmt)
-                    rows = result.fetchall()
-                    result_data = [{col.name: getattr(row, col.name) for col in table.columns} for row in rows]
-
-            elif operation == 'insert' or operation == 'create':
-                # 插入操作
-                if 'id' in data:
-                    del data['id']  # 让数据库自动生成 ID
-                stmt = insert(table).values(**data).returning(table.c.id)
-                result = await conn.execute(stmt)
-                result_data = {"id": result.scalar()}
-
-            elif operation == 'update' or operation == 'set':
-                # 更新操作
-                if 'id' not in data:
-                    raise ValueError("更新操作需要提供 id")
-                stmt = update(table).where(table.c.id == data['id']).values(**{k: v for k, v in data.items() if k != 'id'})
-                await conn.execute(stmt)
-                result_data = {"updated": True}
-
-            elif operation == 'delete':
-                # 删除操作
-                if 'id' not in data:
-                    raise ValueError("删除操作需要提供 id")
-                stmt = delete(table).where(table.c.id == data['id'])
-                await conn.execute(stmt)
-                result_data = {"deleted": True}
-
-            else:
-                # 自定义查询
-                query = config.get('query', '')
-                if query:
-                    stmt = text(query)
-                    result = await conn.execute(stmt)
-                    result_data = result.fetchall()
-                else:
-                    result_data = data
-
-        return {
-            "data": result_data,
-            "operation": operation
-        }
-
-    elif node_type == 'cache':
-        # 缓存操作节点
-        operation = config.get('operation', 'get')
-        key = data.get('key', '')
-        value = data.get('value', None)
-
-        # 简单的内存缓存（生产环境应使用 Redis）
-        if not hasattr(execute_workflow, '_cache'):
-            execute_workflow._cache = {}
-
-        cache = execute_workflow._cache
-
-        if operation == 'get':
-            result = cache.get(key)
-        elif operation == 'set':
-            cache[key] = value
-            ttl = config.get('ttl', 3600)
-            result = {"cached": True, "key": key}
-        elif operation == 'delete':
-            if key in cache:
-                del cache[key]
-            result = {"deleted": True}
-        else:
-            result = data
-
-        return {
-            "data": result
-        }
-
-    elif node_type == 'http':
-        # HTTP 请求节点
-        import httpx
-
-        url = config.get('url', '')
-        method = config.get('method', 'GET')
-        headers = config.get('headers', {})
-        body = config.get('body', {})
-
-        async with httpx.AsyncClient() as client:
-            if method.upper() == 'GET':
-                response = await client.get(url, params=data.get('params', data), headers=headers)
-            elif method.upper() == 'POST':
-                response = await client.post(url, json=body or data, headers=headers)
-            elif method.upper() == 'PUT':
-                response = await client.put(url, json=body or data, headers=headers)
-            elif method.upper() == 'DELETE':
-                response = await client.delete(url, headers=headers)
-            else:
-                response = await client.get(url, headers=headers)
-
-            try:
-                result = response.json()
-            except:
-                result = {"text": response.text}
-
-        return {
-            "data": result,
-            "status_code": response.status_code
-        }
-
-    elif node_type == 'webhook':
-        # Webhook 节点
-        import httpx
-
-        url = config.get('url', '')
-        method = config.get('method', 'POST')
-        headers = config.get('headers', {})
-
-        async with httpx.AsyncClient() as client:
-            response = await client.request(method, url, json=data, headers=headers)
-            try:
-                result = response.json()
-            except:
-                result = {"text": response.text}
-
-        return {
-            "data": result,
-            "status_code": response.status_code
-        }
-
-    else:
-        # 未知节点类型
-        return {
-            "data": data,
-            "message": f"节点类型 {node_type} 未处理"
-        }
 
 
 async def _execute_crud(endpoint: Endpoint, context: dict) -> Any:
@@ -1220,9 +862,42 @@ async def _execute_crud(endpoint: Endpoint, context: dict) -> Any:
             raise ValueError(f"不支持的CRUD方法: {endpoint.method}")
 
 
+async def _execute_custom_code(endpoint: Endpoint, context: dict) -> Any:
+    """执行自定义代码"""
+    # 准备执行环境
+    safe_globals = {
+        "__builtins__": {
+            "print": print,
+            "len": len,
+            "str": str,
+            "int": int,
+            "float": float,
+            "bool": bool,
+            "dict": dict,
+            "list": list,
+            "json": json,
+        },
+        "context": context,
+        "json": json,
+    }
+
+    try:
+        # 执行代码
+        exec(endpoint.custom_code, safe_globals)
+
+        # 如果有返回值
+        if "result" in safe_globals:
+            return safe_globals["result"]
+
+        return {"message": "代码执行成功"}
+    except Exception as e:
+        raise RuntimeError(f"代码执行错误: {str(e)}")
+
+
+# ==================== CRUD 操作 ====================
+
 async def _crud_get_one(session: AsyncSession, model: DataModel, item_id: int) -> dict:
     """获取单条记录"""
-    # 动态创建表连接
     from sqlalchemy import Table, MetaData, select
 
     metadata = MetaData()
@@ -1318,37 +993,7 @@ async def _crud_delete(session: AsyncSession, model: DataModel, item_id: int) ->
     return {"message": "删除成功"}
 
 
-async def _execute_custom_code(endpoint: Endpoint, context: dict) -> Any:
-    """执行自定义代码"""
-    # 准备执行环境
-    safe_globals = {
-        "__builtins__": {
-            "print": print,
-            "len": len,
-            "str": str,
-            "int": int,
-            "float": float,
-            "bool": bool,
-            "dict": dict,
-            "list": list,
-            "json": json,
-        },
-        "context": context,
-        "json": json,
-    }
-
-    try:
-        # 执行代码
-        exec(endpoint.custom_code, safe_globals)
-
-        # 如果有返回值
-        if "result" in safe_globals:
-            return safe_globals["result"]
-
-        return {"message": "代码执行成功"}
-    except Exception as e:
-        raise RuntimeError(f"代码执行错误: {str(e)}")
-
+# ==================== 模板渲染 ====================
 
 def _render_template(template: Any, context: dict) -> Any:
     """渲染模板（支持变量替换）"""

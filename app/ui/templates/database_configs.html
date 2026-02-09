@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据库配置 - SuperWeb</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+
+        /* 顶部导航 */
+        .navbar {
+            height: 60px;
+            background: rgba(26, 26, 62, 0.95);
+            border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .navbar-brand {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar-btn {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .navbar-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        /* 配置卡片 */
+        .configs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .config-card {
+            background: rgba(31, 31, 64, 0.8);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+
+        .config-card:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .config-card.disabled {
+            opacity: 0.6;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .config-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .config-badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .config-badge.default {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .config-badge.enabled {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .config-badge.disabled {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .config-type {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #a0a0b8;
+            margin-bottom: 8px;
+        }
+
+        .config-type-icon {
+            font-size: 18px;
+        }
+
+        .config-info {
+            font-size: 12px;
+            color: #7c7ca0;
+            margin-bottom: 15px;
+        }
+
+        .config-info div {
+            margin-bottom: 4px;
+        }
+
+        .config-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .config-action-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 8px;
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #a0a0b8;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .config-action-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            color: #e0e0e0;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: rgba(26, 26, 62, 0.98);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 16px;
+            padding: 0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            min-width: 500px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+        }
+
+        .modal-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e0e0e0;
+            flex: 1;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #7c7ca0;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #e0e0e0;
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            color: #a0a0b8;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(31, 31, 64, 0.8);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #a0a0b8;
+        }
+
+        .form-checkbox input {
+            width: 18px;
+            height: 18px;
+        }
+
+        .modal-footer {
+            padding: 15px 25px;
+            border-top: 1px solid rgba(102, 126, 234, 0.2);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7c7ca0;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-text {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .empty-hint {
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(26, 26, 62, 0.95);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+            animation: slideIn 0.3s ease-out;
+            z-index: 10001;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: #a0a0b8;
+            line-height: 1.5;
+        }
+
+        /* 帮助信息 */
+        .help-box {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .help-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .help-content {
+            font-size: 12px;
+            color: #a0a0b8;
+            line-height: 1.6;
+        }
+
+        .help-code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="navbar">
+        <div class="navbar-brand">
+            <span>🗄️</span>
+            <span>数据库配置</span>
+        </div>
+        <div style="flex: 1;"></div>
+        <a href="/ui/" class="navbar-btn">← 返回首页</a>
+        <a href="/ui/workflows" class="navbar-btn">📊 工作流</a>
+        <a href="/ui/workflow-logs" class="navbar-btn">📋 日志</a>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 帮助信息 -->
+        <div class="help-box">
+            <div class="help-title">💡 使用说明</div>
+            <div class="help-content">
+                配置外部数据库连接后，在工作流节点的 Python 代码中可以直接使用数据库连接对象。
+                激活的数据库会以配置名称注入到脚本中，例如：<code>db</code> 或 <code>my_database</code>
+                <div class="help-code">
+# 使用默认数据库连接
+async with db.acquire() as conn:
+    result = await conn.execute(text("SELECT * FROM users"))
+    data = result.fetchall()
+
+# 使用指定名称的数据库连接
+async with my_database.acquire() as conn:
+    ...
+                </div>
+            </div>
+        </div>
+
+        <!-- 页面头部 -->
+        <div class="page-header">
+            <div class="page-title">数据库配置</div>
+            <button class="btn" onclick="showCreateModal()">➕ 新建配置</button>
+        </div>
+
+        <!-- 配置列表 -->
+        <div id="configs-container" class="configs-grid">
+            <div class="empty-state">
+                <div class="empty-icon">🗄️</div>
+                <div class="empty-text">暂无数据库配置</div>
+                <div class="empty-hint">点击"新建配置"添加您的第一个数据库连接</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建/编辑模态框 -->
+    <div class="modal-overlay" id="config-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">新建数据库配置</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="config-form">
+                    <input type="hidden" id="config-id">
+
+                    <div class="form-group">
+                        <label class="form-label">配置名称 *</label>
+                        <input type="text" class="form-input" id="config-name" placeholder="my_database" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">描述</label>
+                        <input type="text" class="form-input" id="config-description" placeholder="生产环境数据库">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">数据库类型 *</label>
+                        <select class="form-select" id="config-type" onchange="handleTypeChange()">
+                            <option value="sqlite">SQLite</option>
+                            <option value="postgresql">PostgreSQL</option>
+                            <option value="mysql">MySQL</option>
+                            <option value="mssql">SQL Server</option>
+                        </select>
+                    </div>
+
+                    <!-- SQLite 配置 -->
+                    <div id="sqlite-config" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">数据库文件路径 *</label>
+                            <input type="text" class="form-input" id="config-path" placeholder="/path/to/database.db">
+                        </div>
+                    </div>
+
+                    <!-- 远程数据库配置 -->
+                    <div id="remote-config">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">主机地址 *</label>
+                                <input type="text" class="form-input" id="config-host" placeholder="localhost">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">端口 *</label>
+                                <input type="number" class="form-input" id="config-port" placeholder="5432">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">数据库名 *</label>
+                            <input type="text" class="form-input" id="config-database" placeholder="mydb">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">用户名</label>
+                                <input type="text" class="form-input" id="config-username" placeholder="dbuser">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">密码</label>
+                                <input type="password" class="form-input" id="config-password" placeholder="••••••••">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">连接池大小</label>
+                            <input type="number" class="form-input" id="config-pool-size" value="5" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">最大溢出</label>
+                            <input type="number" class="form-input" id="config-max-overflow" value="10" min="0">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="config-enabled" checked>
+                            <span>启用此配置</span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="config-default">
+                            <span>设为默认配置（在脚本中可用名称 <code>db</code>）</span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn" onclick="saveConfig()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let configs = [];
+        let editingConfigId = null;
+
+        // ========== 初始化 ==========
+        window.onload = async function() {
+            await loadConfigs();
+            handleTypeChange();
+        };
+
+        // ========== 数据加载 ==========
+        async function loadConfigs() {
+            try {
+                const data = await api('/api/admin/database-configs');
+                configs = data.items;
+                renderConfigs();
+            } catch (error) {
+                showToast('加载失败', error.message, 'error');
+            }
+        }
+
+        function renderConfigs() {
+            const container = document.getElementById('configs-container');
+
+            if (configs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🗄️</div>
+                        <div class="empty-text">暂无数据库配置</div>
+                        <div class="empty-hint">点击"新建配置"添加您的第一个数据库连接</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = configs.map(config => {
+                const dbTypeIcons = {
+                    'sqlite': '📁',
+                    'postgresql': '🐘',
+                    'mysql': '🐬',
+                    'mssql': '🔷'
+                };
+
+                const connectionInfo = config.db_type === 'sqlite'
+                    ? `路径: ${config.path || '未配置'}`
+                    : `${config.host}:${config.port}/${config.database}`;
+
+                return `
+                    <div class="config-card ${!config.enabled ? 'disabled' : ''}">
+                        <div class="config-header">
+                            <div class="config-name">
+                                ${dbTypeIcons[config.db_type] || '🗄️'}
+                                ${config.name}
+                            </div>
+                            <div>
+                                ${config.is_default ? '<span class="config-badge default">默认</span>' : ''}
+                                <span class="config-badge ${config.enabled ? 'enabled' : 'disabled'}">
+                                    ${config.enabled ? '已启用' : '已禁用'}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="config-type">
+                            <span class="config-type-icon">${dbTypeIcons[config.db_type] || '🗄️'}</span>
+                            ${config.db_type.toUpperCase()}
+                        </div>
+                        <div class="config-info">
+                            <div>${connectionInfo}</div>
+                            ${config.description ? `<div>${config.description}</div>` : ''}
+                        </div>
+                        <div class="config-actions">
+                            <button class="config-action-btn" onclick="testConnection(${config.id})">🔌 测试</button>
+                            <button class="config-action-btn" onclick="editConfig(${config.id})">✏️ 编辑</button>
+                            <button class="config-action-btn" onclick="deleteConfig(${config.id})">🗑 删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ========== 模态框操作 ==========
+        function showCreateModal() {
+            editingConfigId = null;
+            document.getElementById('modal-title').textContent = '新建数据库配置';
+            document.getElementById('config-form').reset();
+            document.getElementById('config-id').value = '';
+            handleTypeChange();
+            document.getElementById('config-modal').classList.add('active');
+        }
+
+        function editConfig(configId) {
+            const config = configs.find(c => c.id === configId);
+            if (!config) return;
+
+            editingConfigId = configId;
+            document.getElementById('modal-title').textContent = '编辑数据库配置';
+
+            // 填充表单
+            document.getElementById('config-id').value = config.id;
+            document.getElementById('config-name').value = config.name;
+            document.getElementById('config-description').value = config.description || '';
+            document.getElementById('config-type').value = config.db_type;
+            document.getElementById('config-host').value = config.host || '';
+            document.getElementById('config-port').value = config.port || '';
+            document.getElementById('config-database').value = config.database || '';
+            document.getElementById('config-username').value = config.username || '';
+            document.getElementById('config-password').value = '';
+            document.getElementById('config-path').value = config.path || '';
+            document.getElementById('config-pool-size').value = config.pool_size;
+            document.getElementById('config-max-overflow').value = config.max_overflow;
+            document.getElementById('config-enabled').checked = config.enabled;
+            document.getElementById('config-default').checked = config.is_default;
+
+            handleTypeChange();
+            document.getElementById('config-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('config-modal').classList.remove('active');
+        }
+
+        function handleTypeChange() {
+            const dbType = document.getElementById('config-type').value;
+            const sqliteConfig = document.getElementById('sqlite-config');
+            const remoteConfig = document.getElementById('remote-config');
+
+            if (dbType === 'sqlite') {
+                sqliteConfig.style.display = 'block';
+                remoteConfig.style.display = 'none';
+            } else {
+                sqliteConfig.style.display = 'none';
+                remoteConfig.style.display = 'block';
+            }
+        }
+
+        // ========== CRUD 操作 ==========
+        async function saveConfig() {
+            const dbType = document.getElementById('config-type').value;
+            const name = document.getElementById('config-name').value.trim();
+
+            if (!name) {
+                showToast('错误', '请输入配置名称', 'error');
+                return;
+            }
+
+            const data = {
+                name: name,
+                description: document.getElementById('config-description').value.trim(),
+                db_type: dbType,
+                pool_size: parseInt(document.getElementById('config-pool-size').value),
+                max_overflow: parseInt(document.getElementById('config-max-overflow').value),
+                enabled: document.getElementById('config-enabled').checked,
+                is_default: document.getElementById('config-default').checked
+            };
+
+            if (dbType === 'sqlite') {
+                data.path = document.getElementById('config-path').value.trim();
+            } else {
+                data.host = document.getElementById('config-host').value.trim();
+                data.port = parseInt(document.getElementById('config-port').value);
+                data.database = document.getElementById('config-database').value.trim();
+                data.username = document.getElementById('config-username').value.trim();
+                data.password = document.getElementById('config-password').value;
+            }
+
+            try {
+                if (editingConfigId) {
+                    await api(`/api/admin/database-configs/${editingConfigId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('成功', '数据库配置已更新', 'success');
+                } else {
+                    await api('/api/admin/database-configs', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('成功', '数据库配置已创建', 'success');
+                }
+
+                closeModal();
+                await loadConfigs();
+            } catch (error) {
+                showToast('保存失败', error.message, 'error');
+            }
+        }
+
+        async function deleteConfig(configId) {
+            if (!confirm('确定要删除此数据库配置吗？')) return;
+
+            try {
+                await api(`/api/admin/database-configs/${configId}`, {
+                    method: 'DELETE'
+                });
+                showToast('成功', '数据库配置已删除', 'success');
+                await loadConfigs();
+            } catch (error) {
+                showToast('删除失败', error.message, 'error');
+            }
+        }
+
+        async function testConnection(configId) {
+            try {
+                const result = await api(`/api/admin/database-configs/${configId}/test`, {
+                    method: 'POST'
+                });
+
+                if (result.success) {
+                    showToast('连接测试成功', result.message, 'success');
+                } else {
+                    showToast('连接测试失败', result.message, 'error');
+                }
+            } catch (error) {
+                showToast('测试失败', error.message, 'error');
+            }
+        }
+
+        // ========== 工具函数 ==========
+        async function api(url, options = {}) {
+            const response = await fetch(url, {
+                headers: { 'Content-Type': 'application/json', ...options.headers },
+                ...options
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || error.message || '请求失败');
+            }
+
+            return response.json();
+        }
+
+        function showToast(title, message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `
+                <div class="toast-title">${title}</div>
+                <div class="toast-message">${message}</div>
+            `;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+</html>

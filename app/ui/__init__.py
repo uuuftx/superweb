@@ -31,3 +31,9 @@ async def workflow_editor_page(request: Request):
 async def workflow_logs_page(request: Request):
     """工作流执行日志页面"""
     return templates.TemplateResponse("workflow_logs.html", {"request": request})
+
+
+@router.get("/database-configs", response_class=HTMLResponse)
+async def database_configs_page(request: Request):
+    """数据库配置管理页面"""
+    return templates.TemplateResponse("database_configs.html", {"request": request})

@@ -150,10 +150,10 @@ async def execute_workflow_api(request: Request):
         if not nodes:
             return {"error": "工作流为空", "workflow": workflow_name}
 
-        # 构建节点映射
+        # 构建节点映射（从 position_x 计算节点编号）
         node_map = {}
         for node in nodes:
-            node_num = int(node.node_id.split('_')[1]) if node.node_id.startswith('node_') else int(node.position_x / 200)
+            node_num = int(node.position_x / 200)
             node_map[node_num] = node
 
         # 检查是否启用日志

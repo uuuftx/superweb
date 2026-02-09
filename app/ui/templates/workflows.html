@@ -54,6 +54,28 @@
             <tr><td colspan="4" style="text-align: center; color: #a0aec0; padding: 40px;">加载中...</td></tr>
         </tbody>
     </table>
+
+    <!-- 分页控件 -->
+    <div id="pagination" class="pagination-container" style="display: none;">
+        <div class="pagination-info">
+            <span id="pagination-info-text">第 1 / 1 页，共 0 条</span>
+        </div>
+        <div class="pagination-controls">
+            <button id="prev-page-btn" class="page-btn" onclick="changePage(-1)" disabled>
+                ← 上一页
+            </button>
+            <div id="page-numbers" class="page-numbers"></div>
+            <button id="next-page-btn" class="page-btn" onclick="changePage(1)">
+                下一页 →
+            </button>
+            <select id="page-size-select" class="page-size-select" onchange="changePageSize()">
+                <option value="10">10 条/页</option>
+                <option value="20">20 条/页</option>
+                <option value="50">50 条/页</option>
+                <option value="100">100 条/页</option>
+            </select>
+        </div>
+    </div>
 </div>
 
 <!-- 创建工作流模态框 -->
@@ -193,9 +215,136 @@
         transform: translateY(0) scale(1);
     }
 }
+
+/* 优化表格行高 */
+#workflows-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#workflows-table th,
+#workflows-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+#workflows-table tbody tr {
+    transition: background-color 0.2s;
+}
+
+#workflows-table tbody tr:hover {
+    background-color: #f7fafc;
+}
+
+#workflows-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* 分页控件样式 */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    gap: 20px;
+}
+
+.pagination-info {
+    font-size: 14px;
+    color: #4a5568;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.page-btn {
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #4a5568;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f7fafc;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 4px;
+}
+
+.page-numbers .page-number {
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    color: #4a5568;
+    transition: all 0.2s;
+}
+
+.page-numbers .page-number:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.page-numbers .page-number.active {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+    cursor: default;
+}
+
+.page-size-select {
+    padding: 8px 12px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4a5568;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+}
+
+.page-size-select:hover {
+    border-color: #667eea;
+}
+
+.page-size-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
 </style>
 <script>
 let workflows = [];
+let currentPage = 1;
+let pageSize = 20;
+let totalPages = 1;
+let totalItems = 0;
 
 // Toast 通知函数
 function showToast(title, message, type = 'info', duration = 3000) {
@@ -337,7 +486,13 @@ async function loadWorkflows() {
     try {
         const data = await api('/api/admin/workflows');
         workflows = data.items;
+        totalItems = workflows.length;
+        totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+        // 重置到第一页
+        currentPage = 1;
         renderWorkflows();
+        updatePaginationInfo();
     } catch (error) {
         console.error('加载失败:', error);
     }
@@ -360,10 +515,23 @@ function renderWorkflows() {
         return;
     }
 
-    tbody.innerHTML = workflows.map(w => `
+    // 计算当前页的数据
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalItems);
+    const pageWorkflows = workflows.slice(startIndex, endIndex);
+
+    tbody.innerHTML = pageWorkflows.map(w => `
         <tr>
             <td>
-                <strong style="color: #2d3748;">${w.name}</strong>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <strong style="color: #2d3748;">${w.name}</strong>
+                    <button onclick="copyWorkflowName('${w.name}')"
+                            class="copy-btn"
+                            title="复制流程名"
+                            data-name="${w.name}">
+                        📋
+                    </button>
+                </div>
             </td>
             <td style="color: #718096;">${w.description || '-'}</td>
             <td>
@@ -382,6 +550,104 @@ function renderWorkflows() {
             </td>
         </tr>
     `).join('');
+}
+
+// 更新分页信息
+function updatePaginationInfo() {
+    const pagination = document.getElementById('pagination');
+    const infoText = document.getElementById('pagination-info-text');
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+    const pageNumbers = document.getElementById('page-numbers');
+
+    // 如果没有数据或只有一页，隐藏分页
+    if (totalItems <= pageSize) {
+        pagination.style.display = 'none';
+        return;
+    }
+
+    pagination.style.display = 'flex';
+
+    // 更新信息文本
+    infoText.textContent = `第 ${currentPage} / ${totalPages} 页，共 ${totalItems} 条`;
+
+    // 更新按钮状态
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+
+    // 生成页码
+    pageNumbers.innerHTML = '';
+    const maxPages = 7; // 最多显示7个页码
+
+    if (totalPages <= maxPages) {
+        // 总页数少，显示所有页码
+        for (let i = 1; i <= totalPages; i++) {
+            pageNumbers.appendChild(createPageButton(i));
+        }
+    } else {
+        // 总页数多，简化显示
+        if (currentPage <= 4) {
+            for (let i = 1; i <= 5; i++) {
+                pageNumbers.appendChild(createPageButton(i));
+            }
+            pageNumbers.appendChild(createEllipsis());
+            pageNumbers.appendChild(createPageButton(totalPages));
+        } else if (currentPage >= totalPages - 3) {
+            pageNumbers.appendChild(createPageButton(1));
+            pageNumbers.appendChild(createEllipsis());
+            for (let i = totalPages - 4; i <= totalPages; i++) {
+                pageNumbers.appendChild(createPageButton(i));
+            }
+        } else {
+            pageNumbers.appendChild(createPageButton(1));
+            pageNumbers.appendChild(createEllipsis());
+            for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                pageNumbers.appendChild(createPageButton(i));
+            }
+            pageNumbers.appendChild(createEllipsis());
+            pageNumbers.appendChild(createPageButton(totalPages));
+        }
+    }
+}
+
+function createPageButton(page) {
+    const btn = document.createElement('button');
+    btn.className = 'page-number' + (page === currentPage ? ' active' : '');
+    btn.textContent = page;
+    btn.onclick = () => goToPage(page);
+    return btn;
+}
+
+function createEllipsis() {
+    const span = document.createElement('span');
+    span.textContent = '...';
+    span.style.cssText = 'padding: 0 4px; color: #a0aec0;';
+    return span;
+}
+
+function changePage(delta) {
+    const newPage = currentPage + delta;
+    if (newPage >= 1 && newPage <= totalPages) {
+        goToPage(newPage);
+    }
+}
+
+function goToPage(page) {
+    currentPage = page;
+    renderWorkflows();
+    updatePaginationInfo();
+
+    // 滚动到表格顶部
+    document.getElementById('workflows-table').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function changePageSize() {
+    const select = document.getElementById('page-size-select');
+    pageSize = parseInt(select.value);
+    totalPages = Math.ceil(totalItems / pageSize) || 1;
+    currentPage = 1;
+    renderWorkflows();
+    updatePaginationInfo();
 }
 
 function showCreateModal() {
@@ -438,6 +704,75 @@ async function deleteWorkflow(id) {
         showToast('删除失败', error.message, 'error');
     }
 }
+
+// 复制工作流名称到剪贴板
+async function copyWorkflowName(name) {
+    try {
+        await navigator.clipboard.writeText(name);
+
+        // 显示复制成功提示
+        showToast(
+            '复制成功',
+            `流程名 "${name}" 已复制到剪贴板`,
+            'success',
+            2000
+        );
+
+        // 添加临时高亮效果
+        const btn = document.querySelector(`.copy-btn[data-name="${name}"]`);
+        if (btn) {
+            const originalText = btn.textContent;
+            btn.textContent = '✅';
+            btn.style.background = '#10b981';
+            btn.style.color = 'white';
+            btn.style.transform = 'scale(1.2)';
+
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = '';
+                btn.style.color = '';
+                btn.style.transform = '';
+            }, 1000);
+        }
+    } catch (error) {
+        // 降级方案：使用传统方法复制
+        const textArea = document.createElement('textarea');
+        textArea.value = name;
+        textArea.style.cssText = 'position: fixed; top: -9999px; left: -9999px;';
+        document.body.appendChild(textArea);
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            showToast('复制成功', `流程名 "${name}" 已复制`, 'success', 2000);
+        } catch (err) {
+            showToast('复制失败', '无法复制到剪贴板', 'error', 3000);
+        }
+
+        document.body.removeChild(textArea);
+    }
+}
+
+// 添加复制按钮样式
+const copyBtnStyle = document.createElement('style');
+copyBtnStyle.textContent = `
+    .copy-btn {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s;
+        opacity: 0.6;
+    }
+    .copy-btn:hover {
+        opacity: 1;
+        background: #f0f0f0;
+        transform: scale(1.1);
+    }
+`;
+document.head.appendChild(copyBtnStyle);
 
 loadWorkflows();
 </script>

@@ -101,6 +101,29 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
+        /* 复制名称按钮 */
+        .copy-name-btn {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1.5px solid rgba(102, 126, 234, 0.3);
+            color: #667eea;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .copy-name-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .copy-name-btn:active {
+            transform: translateY(0);
+        }
+
         .btn {
             padding: 10px 20px;
             border: none;
@@ -424,6 +447,12 @@
                 <select id="workflow-filter" class="filter-select" onchange="loadLogs()">
                     <option value="">全部工作流</option>
                 </select>
+                <button id="copy-workflow-name-btn" onclick="copySelectedWorkflowName()"
+                        class="copy-name-btn"
+                        style="display: none;"
+                        title="复制选中工作流的名称">
+                    📋 复制名称
+                </button>
             </div>
 
             <div class="filter-group">
@@ -766,6 +795,63 @@
         // 返回
         function goBack() {
             window.history.back();
+        }
+
+        // 复制选中的工作流名称
+        async function copySelectedWorkflowName() {
+            const select = document.getElementById('workflow-filter');
+            const selectedName = select.value;
+            const selectedText = select.options[select.selectedIndex].text;
+
+            if (!selectedName) {
+                showToast('提示', '请先选择一个工作流', 'info');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(selectedName);
+                showToast('复制成功', `工作流名称 "${selectedText}" 已复制`, 'success');
+
+                // 按钮动画效果
+                const btn = document.getElementById('copy-workflow-name-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✅ 已复制';
+                btn.style.background = 'rgba(16, 185, 129, 0.2)';
+                btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.background = '';
+                    btn.style.borderColor = '';
+                }, 2000);
+            } catch (error) {
+                // 降级方案
+                const textArea = document.createElement('textarea');
+                textArea.value = selectedName;
+                textArea.style.cssText = 'position: fixed; top: -9999px; left: -9999px;';
+                document.body.appendChild(textArea);
+                textArea.select();
+
+                try {
+                    document.execCommand('copy');
+                    showToast('复制成功', `工作流名称 "${selectedText}" 已复制`, 'success');
+                } catch (err) {
+                    showToast('复制失败', '无法复制到剪贴板', 'error');
+                }
+
+                document.body.removeChild(textArea);
+            }
+        }
+
+        // 更新工作流选择后的复制按钮状态
+        const workflowFilter = document.getElementById('workflow-filter');
+        if (workflowFilter) {
+            workflowFilter.addEventListener('change', () => {
+                const copyBtn = document.getElementById('copy-workflow-name-btn');
+                if (copyBtn) {
+                    copyBtn.style.display = workflowFilter.value ? 'inline-block' : 'none';
+                }
+            });
         }
 
         // ESC关闭模态框

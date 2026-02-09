@@ -161,6 +161,51 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
         }
 
+        /* 跳转指示器 */
+        .node-jump-indicator {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid rgba(0, 255, 136, 0.5);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: #00ff88;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .node-jump-indicator.jump-to-end {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+            color: #ef4444;
+        }
+
+        .node-jump-indicator.jump-invalid {
+            background: rgba(255, 193, 7, 0.2);
+            border-color: rgba(255, 193, 7, 0.5);
+            color: #ffc107;
+        }
+
+        /* 连接线样式 */
+        .node-card::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 12px;
+            background: linear-gradient(to bottom, rgba(102, 126, 234, 0.5), transparent);
+        }
+
+        .node-card.last-node::after {
+            display: none;
+        }
+
         .node-card-header {
             display: flex;
             align-items: center;
@@ -231,6 +276,23 @@
         .node-action-btn:hover {
             background: rgba(102, 126, 234, 0.2);
             color: #e0e0e0;
+        }
+
+        .node-action-btn.jump-btn {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: rgba(0, 255, 136, 0.3);
+            color: #00ff88;
+        }
+
+        .node-action-btn.jump-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+        }
+
+        .node-action-btn.jump-btn:disabled {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+            cursor: not-allowed;
         }
 
         /* 右侧编辑区域 */
@@ -400,6 +462,162 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(102, 126, 234, 0.7);
         }
+
+        /* 自定义确认对话框 */
+        .confirm-dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .confirm-dialog-overlay.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .confirm-dialog {
+            background: rgba(26, 26, 62, 0.98);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 16px;
+            padding: 0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            min-width: 400px;
+            max-width: 90vw;
+            animation: scaleIn 0.3s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .confirm-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .confirm-icon {
+            font-size: 32px;
+        }
+
+        .confirm-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .confirm-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #7c7ca0;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .confirm-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #e0e0e0;
+        }
+
+        .confirm-body {
+            padding: 25px;
+        }
+
+        .confirm-message {
+            font-size: 15px;
+            color: #a0a0b8;
+            line-height: 1.6;
+        }
+
+        .confirm-node-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(31, 31, 64, 0.6);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+        }
+
+        .confirm-node-info-title {
+            font-size: 12px;
+            color: #7c7ca0;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .confirm-node-info-content {
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .confirm-footer {
+            padding: 15px 25px;
+            border-top: 1px solid rgba(102, 126, 234, 0.2);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .confirm-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .confirm-btn-cancel {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #a0a0b8;
+        }
+
+        .confirm-btn-cancel:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .confirm-btn-confirm {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .confirm-btn-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -408,6 +626,20 @@
         <div class="toolbar-brand">
             <span>🔀</span>
             <span id="workflow-title">工作流代码编辑器</span>
+            <button id="copy-name-btn" onclick="copyWorkflowName()" style="
+                background: rgba(102, 126, 234, 0.2);
+                border: 1px solid rgba(102, 126, 234, 0.3);
+                color: #667eea;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                cursor: pointer;
+                transition: all 0.2s;
+                margin-left: 12px;
+                display: none;
+            " title="复制流程名">
+                📋 复制名称
+            </button>
         </div>
 
         <div class="toolbar-divider"></div>
@@ -464,6 +696,64 @@
         let selectedNodeId = null;
         let nextNodeNumber = 1;
         let codeEditor = null;
+        let parseDebounceTimer = null;
+
+        // ========== next_node 解析 ==========
+        function parseNextNodeFromCode(code) {
+            // 解析代码中的 next_node 值
+            // 支持多种格式:
+            // next_node = 1
+            // next_node=1
+            // next_node = variable (返回 null 表示动态值)
+            // next_node = some_expression (返回 null)
+
+            // 移除注释
+            const lines = code.split('\n').map(line => {
+                const commentIdx = line.indexOf('#');
+                return commentIdx >= 0 ? line.substring(0, commentIdx) : line;
+            });
+
+            const codeWithoutComments = lines.join('\n');
+
+            // 匹配 next_node = 数字
+            const match = codeWithoutComments.match(/next_node\s*=\s*(\d+)\s*(?:\n|$)/);
+            if (match) {
+                const value = parseInt(match[1]);
+                return { value, isValid: !isNaN(value) };
+            }
+
+            // 匹配 next_node = 变量名或表达式
+            const exprMatch = codeWithoutComments.match(/next_node\s*=\s*(\w+|\(.+\))/);
+            if (exprMatch) {
+                return { value: null, isDynamic: true, expression: exprMatch[1].trim() };
+            }
+
+            // 没有找到 next_node 赋值
+            return { value: null, isValid: false };
+        }
+
+        function updateNextNodeFromCode(nodeId, code) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (!node) return;
+
+            const parsed = parseNextNodeFromCode(code);
+
+            if (parsed.isValid) {
+                node.next_node = parsed.value;
+                node.next_node_dynamic = false;
+            } else if (parsed.isDynamic) {
+                node.next_node = null;
+                node.next_node_dynamic = true;
+                node.next_node_expression = parsed.expression;
+            } else {
+                // 未定义 next_node，默认为 0 (结束)
+                node.next_node = 0;
+                node.next_node_dynamic = false;
+            }
+
+            // 实时刷新节点列表
+            renderNodesList();
+        }
 
         // ========== 初始化 ==========
         window.onload = async function() {
@@ -483,13 +773,18 @@
             const nodeNumber = nextNodeNumber++;
             const nodeId = `node_${nodeNumber}`;
 
+            const defaultCode = generateDefaultCode(nodeNumber);
+            const parsed = parseNextNodeFromCode(defaultCode);
+
             const node = {
                 id: nodeId,
                 node_number: nodeNumber,
                 name: `节点${nodeNumber}`,
                 description: '',
-                next_node: nodeNumber + 1,
-                code: generateDefaultCode(nodeNumber)
+                next_node: parsed.value || 0,
+                next_node_dynamic: parsed.isDynamic || false,
+                next_node_expression: parsed.expression || null,
+                code: defaultCode
             };
 
             nodes.push(node);
@@ -504,6 +799,14 @@
 # 可用变量:
 # data: 上一个节点传递的数据
 # context: 请求上下文 {path, query, headers, body}
+# db: 默认数据库连接（如果配置了默认数据库）
+# <配置名>: 其他已配置的数据库连接
+
+# 数据库使用示例:
+# async with db.acquire() as session:
+#     from sqlalchemy import text
+#     result = await session.execute(text("SELECT * FROM users"))
+#     data = result.fetchall()
 
 # 处理逻辑
 data = data or {}
@@ -539,22 +842,38 @@ next_node = ${nodeNumber + 1}`
                 const nextNode = nodes.find(n => n.node_number === node.next_node);
                 const hasNext = node.next_node && node.next_node > 0;
                 const isLast = !hasNext || node.next_node === 0;
+                const isDynamic = node.next_node_dynamic;
+
+                // 跳转指示器
+                let jumpIndicator = '';
+                if (isDynamic) {
+                    jumpIndicator = `<div class="node-jump-indicator jump-invalid">⚡ 动态: ${node.next_node_expression || '表达式'}</div>`;
+                } else if (isLast) {
+                    jumpIndicator = `<div class="node-jump-indicator jump-to-end">⏹ 结束</div>`;
+                } else if (hasNext) {
+                    const nextExists = nodes.some(n => n.node_number === node.next_node);
+                    if (nextExists) {
+                        jumpIndicator = `<div class="node-jump-indicator">→ #${node.next_node}${nextNode ? ' ' + nextNode.name : ''}</div>`;
+                    } else {
+                        jumpIndicator = `<div class="node-jump-indicator jump-invalid">⚠️ #${node.next_node} 不存在</div>`;
+                    }
+                }
 
                 return `
-                    <div class="node-card ${isSelected ? 'selected' : ''}" onclick="selectNode('${node.id}')">
+                    <div class="node-card ${isSelected ? 'selected' : ''} ${isLast ? 'last-node' : ''}" onclick="selectNode('${node.id}')">
+                        ${jumpIndicator}
                         <div class="node-card-header">
                             <div class="node-number">#${node.node_number}</div>
                             <div class="node-info">
                                 <div class="node-name">${node.name}</div>
                                 <div class="node-meta">
-                                    ${isLast ? '→ 结束' : `→ #${node.next_node} ${nextNode ? nextNode.name : ''}`}
+                                    ${isDynamic ? '🔀 动态跳转' : isLast ? '→ 结束' : `→ #${node.next_node}`}
                                 </div>
                             </div>
-                            ${!isLast ? '<div class="node-arrow">→</div>' : '<div class="node-arrow">⏹</div>'}
+                            ${isDynamic ? '<div class="node-arrow">🔀</div>' : !isLast ? '<div class="node-arrow">→</div>' : '<div class="node-arrow">⏹</div>'}
                         </div>
                         <div class="node-card-actions">
-                            <button class="node-action-btn" onclick="event.stopPropagation(); moveNodeUp('${node.id}')" ${node.node_number === 1 ? 'disabled' : ''}>↑ 上移</button>
-                            <button class="node-action-btn" onclick="event.stopPropagation(); moveNodeDown('${node.id}')" ${node.node_number === nodes.length ? 'disabled' : ''}>↓ 下移</button>
+                            ${hasNext && !isDynamic ? `<button class="node-action-btn jump-btn" onclick="event.stopPropagation(); jumpToNextNode('${node.id}')">↪ 跳转下一节点</button>` : ''}
                             <button class="node-action-btn" onclick="event.stopPropagation(); deleteNode('${node.id}')">🗑 删除</button>
                         </div>
                     </div>
@@ -636,53 +955,48 @@ next_node = ${nodeNumber + 1}`
                 renderNodesList();
             });
 
-            // 代码变更监听
+            // 代码变更监听 - 实时解析 next_node
             codeEditor.on('change', () => {
                 node.code = codeEditor.getValue();
+
+                // 使用防抖，避免频繁更新
+                if (parseDebounceTimer) {
+                    clearTimeout(parseDebounceTimer);
+                }
+
+                parseDebounceTimer = setTimeout(() => {
+                    updateNextNodeFromCode(nodeId, node.code);
+
+                    // 同步更新下拉框
+                    const nextSelect = document.getElementById('node-next');
+                    if (nextSelect && node.next_node !== null) {
+                        nextSelect.value = node.next_node;
+                    }
+                }, 300);
             });
         }
 
-        function moveNodeUp(nodeId) {
-            const node = nodes.find(n => n.id === nodeId);
-            if (!node || node.node_number <= 1) return;
+        function jumpToNextNode(currentNodeId) {
+            const currentNode = nodes.find(n => n.id === currentNodeId);
+            if (!currentNode) return;
 
-            // 与上一个节点交换编号
-            const prevNode = nodes.find(n => n.node_number === node.node_number - 1);
-            if (prevNode) {
-                const tempNum = node.node_number;
-                node.node_number = prevNode.node_number;
-                prevNode.node_number = tempNum;
+            const nextNodeNumber = currentNode.next_node;
 
-                // 更新下一节点引用
-                nodes.forEach(n => {
-                    if (n.next_node === tempNum) n.next_node = node.node_number;
-                    else if (n.next_node === prevNode.node_number) n.next_node = tempNum;
-                });
-
-                renderNodesList();
-                selectNode(nodeId);
+            // 检查是否有效的下一节点
+            if (!nextNodeNumber || nextNodeNumber <= 0) {
+                showToast('提示', '当前节点没有配置下一节点（next_node=0 表示流程结束）', 'info');
+                return;
             }
-        }
 
-        function moveNodeDown(nodeId) {
-            const node = nodes.find(n => n.id === nodeId);
-            if (!node || node.node_number >= nodes.length) return;
+            // 查找下一节点
+            const nextNode = nodes.find(n => n.node_number === nextNodeNumber);
 
-            // 与下一个节点交换编号
-            const nextNode = nodes.find(n => n.node_number === node.node_number + 1);
             if (nextNode) {
-                const tempNum = node.node_number;
-                node.node_number = nextNode.node_number;
-                nextNode.node_number = tempNum;
-
-                // 更新下一节点引用
-                nodes.forEach(n => {
-                    if (n.next_node === tempNum) n.next_node = node.node_number;
-                    else if (n.next_node === nextNode.node_number) n.next_node = tempNum;
-                });
-
-                renderNodesList();
-                selectNode(nodeId);
+                // 跳转到下一节点并高亮
+                selectNode(nextNode.id);
+                showToast('跳转', `已跳转到节点 #${nextNodeNumber} - ${nextNode.name}`, 'success');
+            } else {
+                showToast('错误', `节点 #${nextNodeNumber} 不存在，请检查 next_node 配置`, 'error');
             }
         }
 
@@ -690,35 +1004,44 @@ next_node = ${nodeNumber + 1}`
             const node = nodes.find(n => n.id === nodeId);
             if (!node) return;
 
-            if (!confirm(`确定要删除节点 #${node.node_number} "${node.name}" 吗？`)) return;
+            // 显示自定义确认对话框
+            showConfirmDialog({
+                icon: '🗑️',
+                title: '确认删除节点',
+                message: `确定要删除节点 #${node.node_number} "${node.name}" 吗？此操作无法撤销。`,
+                showNodeInfo: true,
+                nodeName: node.name,
+                nodeNumber: node.node_number,
+                onConfirm: () => {
+                    // 删除节点
+                    nodes = nodes.filter(n => n.id !== nodeId);
 
-            // 删除节点
-            nodes = nodes.filter(n => n.id !== nodeId);
+                    // 重新编号
+                    nodes.sort((a, b) => a.node_number - b.node_number);
+                    nodes.forEach((n, index) => {
+                        n.node_number = index + 1;
+                    });
 
-            // 重新编号
-            nodes.sort((a, b) => a.node_number - b.node_number);
-            nodes.forEach((n, index) => {
-                n.node_number = index + 1;
+                    // 更新下一节点引用
+                    nodes.forEach(n => {
+                        if (n.next_node > nodes.length) n.next_node = 0;
+                    });
+
+                    // 如果删除的是当前选中的节点
+                    if (selectedNodeId === nodeId) {
+                        selectedNodeId = null;
+                        document.getElementById('editor-panel').innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-icon">🎯</div>
+                                <div class="empty-text">选择一个节点开始编辑</div>
+                            </div>
+                        `;
+                    }
+
+                    renderNodesList();
+                    showToast('成功', '节点已删除', 'success');
+                }
             });
-
-            // 更新下一节点引用
-            nodes.forEach(n => {
-                if (n.next_node > nodes.length) n.next_node = 0;
-            });
-
-            // 如果删除的是当前选中的节点
-            if (selectedNodeId === nodeId) {
-                selectedNodeId = null;
-                document.getElementById('editor-panel').innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">🎯</div>
-                        <div class="empty-text">选择一个节点开始编辑</div>
-                    </div>
-                `;
-            }
-
-            renderNodesList();
-            showToast('成功', '节点已删除', 'success');
         }
 
         // ========== 工作流操作 ==========
@@ -728,25 +1051,53 @@ next_node = ${nodeNumber + 1}`
                 currentWorkflow = data.workflow;
                 document.getElementById('workflow-title').textContent = currentWorkflow.name;
 
+                // 显示复制按钮
+                const copyBtn = document.getElementById('copy-name-btn');
+                if (copyBtn) {
+                    copyBtn.style.display = 'inline-block';
+                }
+
                 nodes = data.nodes.map(n => ({
                     id: n.id,
-                    node_number: parseInt(n.id.split('_')[1]) || 1,
+                    node_number: Math.floor(n.x / 200) || 1,
                     name: n.name,
                     description: n.config?.description || '',
-                    next_node: 0, // 从代码中解析
                     code: n.config?.code || ''
                 }));
 
-                // 解析next_node
+                // 按原节点编号排序
+                nodes.sort((a, b) => a.node_number - b.node_number);
+
+                // 重新编号为连续的1, 2, 3...
+                const oldToNewMap = {};
+                nodes.forEach((n, index) => {
+                    const oldNumber = n.node_number;
+                    const newNumber = index + 1;
+                    oldToNewMap[oldNumber] = newNumber;
+                    n.node_number = newNumber;
+                });
+
+                // 从代码中解析并更新next_node引用
                 nodes.forEach(node => {
-                    const match = node.code.match(/next_node\s*=\s*(\d+)/);
-                    if (match) {
-                        node.next_node = parseInt(match[1]);
+                    const parsed = parseNextNodeFromCode(node.code);
+                    if (parsed.isValid) {
+                        const oldNext = parsed.value;
+                        node.next_node = oldToNewMap[oldNext] || 0;
+                        node.next_node_dynamic = false;
+                        // 更新代码中的next_node为新的编号
+                        node.code = node.code.replace(/next_node\s*=\s*\d+/g, `next_node = ${node.next_node}`);
+                    } else if (parsed.isDynamic) {
+                        node.next_node = null;
+                        node.next_node_dynamic = true;
+                        node.next_node_expression = parsed.expression;
+                    } else {
+                        node.next_node = 0;
+                        node.next_node_dynamic = false;
                     }
                 });
 
                 if (nodes.length > 0) {
-                    nextNodeNumber = Math.max(...nodes.map(n => n.node_number)) + 1;
+                    nextNodeNumber = nodes.length + 1;
                 }
 
                 renderNodesList();
@@ -768,8 +1119,13 @@ next_node = ${nodeNumber + 1}`
                 if (codeEditor && selectedNodeId === node.id) {
                     node.code = codeEditor.getValue();
                 }
-                // 更新代码中的next_node
-                node.code = node.code.replace(/next_node\s*=\s*\d+/g, `next_node = ${node.next_node}`);
+
+                // 如果是动态next_node，不修改代码
+                // 如果是静态next_node，更新代码中的值
+                if (!node.next_node_dynamic && node.next_node !== null) {
+                    // 更新代码中的next_node
+                    node.code = node.code.replace(/next_node\s*=\s*\d+/g, `next_node = ${node.next_node}`);
+                }
             });
 
             const workflowData = {
@@ -853,6 +1209,50 @@ next_node = ${nodeNumber + 1}`
             setTimeout(() => toast.remove(), 3000);
         }
 
+        function showConfirmDialog(options) {
+            const dialog = document.getElementById('confirm-dialog');
+            const icon = document.getElementById('confirm-icon');
+            const title = document.getElementById('confirm-title');
+            const message = document.getElementById('confirm-message');
+            const nodeInfo = document.getElementById('confirm-node-info');
+            const nodeContent = document.getElementById('confirm-node-content');
+            const confirmBtn = document.getElementById('confirm-btn-confirm');
+
+            // 设置图标
+            icon.textContent = options.icon || '⚠️';
+
+            // 设置标题和消息
+            title.textContent = options.title || '确认操作';
+            message.textContent = options.message || '确定要执行此操作吗？';
+
+            // 设置按钮文本
+            confirmBtn.textContent = options.confirmText || '确认';
+
+            // 显示节点信息
+            if (options.showNodeInfo) {
+                nodeInfo.style.display = 'block';
+                nodeContent.textContent = `#${options.nodeNumber} - ${options.nodeName}`;
+            } else {
+                nodeInfo.style.display = 'none';
+            }
+
+            // 设置确认回调
+            confirmBtn.onclick = () => {
+                if (options.onConfirm) {
+                    options.onConfirm();
+                }
+                closeConfirmDialog();
+            };
+
+            // 显示对话框
+            dialog.classList.add('active');
+        }
+
+        function closeConfirmDialog() {
+            const dialog = document.getElementById('confirm-dialog');
+            dialog.classList.remove('active');
+        }
+
         // ========== API ==========
         async function api(url, options = {}) {
             const response = await fetch(url, {
@@ -867,6 +1267,76 @@ next_node = ${nodeNumber + 1}`
 
             return response.json();
         }
+
+        // ========== 复制流程名 ==========
+        async function copyWorkflowName() {
+            if (!currentWorkflow || !currentWorkflow.name) {
+                showToast('提示', '没有可复制的流程名', 'info');
+                return;
+            }
+
+            const name = currentWorkflow.name;
+
+            try {
+                await navigator.clipboard.writeText(name);
+
+                // 显示复制成功提示
+                showToast('复制成功', `流程名 "${name}" 已复制到剪贴板`, 'success');
+
+                // 按钮动画效果
+                const btn = document.getElementById('copy-name-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✅ 已复制';
+                btn.style.background = 'rgba(16, 185, 129, 0.3)';
+                btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.background = '';
+                    btn.style.borderColor = '';
+                }, 2000);
+            } catch (error) {
+                // 降级方案：使用传统方法复制
+                const textArea = document.createElement('textarea');
+                textArea.value = name;
+                textArea.style.cssText = 'position: fixed; top: -9999px; left: -9999px;';
+                document.body.appendChild(textArea);
+                textArea.select();
+
+                try {
+                    document.execCommand('copy');
+                    showToast('复制成功', `流程名 "${name}" 已复制`, 'success');
+                } catch (err) {
+                    showToast('复制失败', '无法复制到剪贴板', 'error');
+                }
+
+                document.body.removeChild(textArea);
+            }
+        }
     </script>
+
+    <!-- 自定义确认对话框 -->
+    <div class="confirm-dialog-overlay" id="confirm-dialog">
+        <div class="confirm-dialog">
+            <div class="confirm-header">
+                <div class="confirm-icon" id="confirm-icon">⚠️</div>
+                <div class="confirm-title" id="confirm-title">确认操作</div>
+                <button class="confirm-close" onclick="closeConfirmDialog()">&times;</button>
+            </div>
+            <div class="confirm-body">
+                <div class="confirm-message" id="confirm-message">
+                    确定要执行此操作吗？
+                </div>
+                <div class="confirm-node-info" id="confirm-node-info" style="display: none;">
+                    <div class="confirm-node-info-title">将要删除的节点</div>
+                    <div class="confirm-node-info-content" id="confirm-node-content"></div>
+                </div>
+            </div>
+            <div class="confirm-footer">
+                <button class="confirm-btn confirm-btn-cancel" onclick="closeConfirmDialog()">取消</button>
+                <button class="confirm-btn confirm-btn-confirm" id="confirm-btn-confirm">确认删除</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

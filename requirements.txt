@@ -8,3 +8,8 @@ jinja2>=3.1.0
 python-multipart>=0.0.6
 greenlet>=3.0.0
 httpx>=0.25.0
+
+# 数据库驱动（用于外部数据库连接）
+asyncpg>=0.29.0  # PostgreSQL 异步驱动
+pymysql>=1.1.0   # MySQL 驱动
+pymssql>=2.2.11   # SQL Server 驱动
