@@ -607,6 +607,31 @@ let totalItems = 0;
 let selectedIds = new Set();
 let currentSort = { field: 'updated', order: 'desc' };
 
+// API请求函数
+async function api(url, options = {}) {
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+
+    const response = await fetch(url, {
+        ...defaultOptions,
+        ...options,
+        headers: {
+            ...defaultOptions.headers,
+            ...options.headers
+        }
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || '请求失败');
+    }
+
+    return response.json();
+}
+
 // 加载工作流
 async function loadWorkflows() {
     try {
