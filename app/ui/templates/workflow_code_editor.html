@@ -641,6 +641,177 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
         }
+
+        /* 检查结果对话框 */
+        .check-results-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10001;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .check-results-overlay.active {
+            display: flex;
+        }
+
+        .check-results-dialog {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: scaleIn 0.3s ease-out;
+        }
+
+        .check-results-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .check-results-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .check-results-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .check-results-status.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .check-results-status.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .check-results-status.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .check-results-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .check-results-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .check-results-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .check-results-summary {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+        }
+
+        .check-summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .check-summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .check-issue-item {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .check-issue-item.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .check-issue-item.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .check-issue-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .check-issue-content {
+            flex: 1;
+        }
+
+        .check-issue-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .check-issue-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .check-results-footer {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -694,6 +865,7 @@
                 <option value="eclipse">☀️ Eclipse (亮色)</option>
                 <option value="idea">💡 Idea (亮色)</option>
             </select>
+            <button class="secondary" onclick="checkWorkflow()">🔍 检查</button>
             <button class="secondary" onclick="viewLogs()">📋 日志</button>
             <button class="secondary" onclick="exportWorkflow()">📤 导出</button>
             <button onclick="saveWorkflow()">💾 保存</button>
@@ -1322,6 +1494,237 @@ next_node = ${nodeNumber + 1}`
             showToast('导出成功', `工作流 "${currentWorkflow.name}" 已导出`, 'success');
         }
 
+        // ========== 工作流检查 ==========
+        async function checkWorkflow() {
+            if (!currentWorkflow) {
+                showToast('错误', '请先选择工作流', 'error');
+                return;
+            }
+
+            // 显示检查对话框
+            const dialog = document.getElementById('check-results-dialog');
+            const body = document.getElementById('check-results-body');
+            const status = document.getElementById('check-status');
+
+            body.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">正在检查...</div>';
+            status.textContent = '检查中';
+            status.className = 'check-results-status';
+            dialog.classList.add('active');
+
+            // 收集所有问题
+            const issues = [];
+            const warnings = [];
+            const nodeIds = new Set();
+            const nodeMap = new Map();
+
+            // 构建节点映射
+            nodes.forEach(node => {
+                nodeIds.add(node.id);
+                nodeMap.set(node.id, node);
+            });
+
+            // 1. 检查是否有节点
+            if (nodes.length === 0) {
+                issues.push({
+                    type: 'error',
+                    icon: '❌',
+                    title: '没有节点',
+                    desc: '工作流至少需要有一个节点'
+                });
+            }
+
+            // 2. 检查节点名称
+            nodes.forEach(node => {
+                if (!node.name || node.name.trim() === '') {
+                    issues.push({
+                        type: 'error',
+                        icon: '❌',
+                        title: '节点缺少名称',
+                        desc: `节点 #${node.node_number} 没有名称`
+                    });
+                }
+            });
+
+            // 3. 检查节点代码
+            nodes.forEach(node => {
+                if (!node.code || node.code.trim() === '') {
+                    warnings.push({
+                        type: 'warning',
+                        icon: '⚠️',
+                        title: '节点代码为空',
+                        desc: `节点 "${node.name}" 的代码为空`
+                    });
+                }
+            });
+
+            // 4. 检查 next_node 有效性
+            nodes.forEach(node => {
+                if (node.next_node !== null && node.next_node !== undefined && node.next_node !== 0) {
+                    const targetExists = nodes.some(n => n.node_number === node.next_node);
+                    if (!targetExists) {
+                        issues.push({
+                            type: 'error',
+                            icon: '❌',
+                            title: '无效的跳转目标',
+                            desc: `节点 "${node.name}" 跳转到不存在的节点 #${node.next_node}`
+                        });
+                    }
+                }
+            });
+
+            // 5. 检查循环引用
+            const visited = new Set();
+            const path = new Set();
+
+            function hasCycle(nodeNumber) {
+                if (path.has(nodeNumber)) {
+                    return true;
+                }
+                if (visited.has(nodeNumber)) {
+                    return false;
+                }
+
+                visited.add(nodeNumber);
+                path.add(nodeNumber);
+
+                const node = nodes.find(n => n.node_number === nodeNumber);
+                if (node && node.next_node && node.next_node !== 0) {
+                    if (hasCycle(node.next_node)) {
+                        return true;
+                    }
+                }
+
+                path.delete(nodeNumber);
+                return false;
+            }
+
+            nodes.forEach(node => {
+                if (hasCycle(node.node_number)) {
+                    issues.push({
+                        type: 'error',
+                        icon: '🔄',
+                        title: '检测到循环引用',
+                        desc: `节点 "${node.name}" 存在循环引用，会导致无限循环`
+                    });
+                }
+            });
+
+            // 6. 检查孤立节点（没有任何节点指向它，且不是起始节点）
+            const referencedNodes = new Set();
+            nodes.forEach(node => {
+                if (node.next_node && node.next_node !== 0) {
+                    referencedNodes.add(node.next_node);
+                }
+            });
+
+            const startNode = nodes.find(n => n.node_number === 1);
+            nodes.forEach(node => {
+                if (node.node_number !== 1 && !referencedNodes.has(node.node_number)) {
+                    warnings.push({
+                        type: 'warning',
+                        icon: '🏝️',
+                        title: '孤立节点',
+                        desc: `节点 "${node.name}" 无法从起始节点到达`
+                    });
+                }
+            });
+
+            // 7. 检查是否有起始节点
+            if (!startNode) {
+                issues.push({
+                    type: 'error',
+                    icon: '❌',
+                    title: '缺少起始节点',
+                    desc: '工作流必须有一个节点编号为 1 的起始节点'
+                });
+            }
+
+            // 8. 检查节点编号是否连续
+            const sortedNumbers = nodes.map(n => n.node_number).sort((a, b) => a - b);
+            for (let i = 0; i < sortedNumbers.length - 1; i++) {
+                if (sortedNumbers[i + 1] - sortedNumbers[i] > 1) {
+                    warnings.push({
+                        type: 'warning',
+                        icon: '⚠️',
+                        title: '节点编号不连续',
+                        desc: `节点编号从 ${sortedNumbers[i]} 跳到 ${sortedNumbers[i + 1]}`
+                    });
+                    break;
+                }
+            }
+
+            // 9. 检查是否有结束节点
+            const hasEndNode = nodes.some(node => node.next_node === 0 || !node.next_node);
+            if (!hasEndNode && nodes.length > 0) {
+                warnings.push({
+                    type: 'warning',
+                    icon: '⚠️',
+                    title: '没有结束节点',
+                    desc: '工作流没有明确的结束节点，可能会导致问题'
+                });
+            }
+
+            // 生成结果
+            setTimeout(() => {
+                const allIssues = [...issues, ...warnings];
+                const errorCount = issues.length;
+                const warningCount = warnings.length;
+
+                // 设置状态
+                if (errorCount > 0) {
+                    status.textContent = '发现问题';
+                    status.className = 'check-results-status error';
+                } else if (warningCount > 0) {
+                    status.textContent = '有警告';
+                    status.className = 'check-results-status warning';
+                } else {
+                    status.textContent = '通过';
+                    status.className = 'check-results-status success';
+                }
+
+                // 生成结果HTML
+                let html = '';
+
+                // 摘要
+                html += '<div class="check-results-summary">';
+                html += '<div class="check-summary-item">';
+                html += `<span>总节点数</span><span>${nodes.length}</span>`;
+                html += '</div>';
+                html += '<div class="check-summary-item">';
+                html += `<span>错误</span><span style="color: #ef4444;">${errorCount}</span>`;
+                html += '</div>';
+                html += '<div class="check-summary-item">';
+                html += `<span>警告</span><span style="color: #f59e0b;">${warningCount}</span>`;
+                html += '</div>';
+                html += '</div>';
+
+                // 问题列表
+                if (allIssues.length > 0) {
+                    allIssues.forEach(issue => {
+                        html += '<div class="check-issue-item ' + issue.type + '">';
+                        html += '<div class="check-issue-icon">' + issue.icon + '</div>';
+                        html += '<div class="check-issue-content">';
+                        html += '<div class="check-issue-title">' + issue.title + '</div>';
+                        html += '<div class="check-issue-desc">' + issue.desc + '</div>';
+                        html += '</div></div>';
+                    });
+                } else {
+                    html += '<div class="check-issue-item success">';
+                    html += '<div class="check-issue-icon">✅</div>';
+                    html += '<div class="check-issue-content">';
+                    html += '<div class="check-issue-title">检查通过</div>';
+                    html += '<div class="check-issue-desc">工作流配置正确，没有发现明显问题</div>';
+                    html += '</div></div>';
+                }
+
+                body.innerHTML = html;
+            }, 300); // 添加小延迟以显示加载效果
+        }
+
+        function closeCheckResults() {
+            document.getElementById('check-results-dialog').classList.remove('active');
+        }
+
         // ========== 辅助功能 ==========
         function toggleWorkflowEnabled() {
             if (!currentWorkflow) return;
@@ -1500,6 +1903,25 @@ next_node = ${nodeNumber + 1}`
             <div class="confirm-footer">
                 <button class="confirm-btn confirm-btn-cancel" onclick="closeConfirmDialog()">取消</button>
                 <button class="confirm-btn confirm-btn-confirm" id="confirm-btn-confirm">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 检查结果对话框 -->
+    <div class="check-results-overlay" id="check-results-dialog">
+        <div class="check-results-dialog">
+            <div class="check-results-header">
+                <div class="check-results-title">
+                    <span>🔍 流程检查结果</span>
+                    <span class="check-results-status" id="check-status">检查中</span>
+                </div>
+                <button class="check-results-close" onclick="closeCheckResults()">&times;</button>
+            </div>
+            <div class="check-results-body" id="check-results-body">
+                <!-- 检查结果将在这里动态生成 -->
+            </div>
+            <div class="check-results-footer">
+                <button class="panel-btn" onclick="closeCheckResults()">关闭</button>
             </div>
         </div>
     </div>
