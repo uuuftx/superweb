@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 import os
 import time
+from datetime import datetime
 
 from app.core.config import get_settings
 from app.core.database import init_db
