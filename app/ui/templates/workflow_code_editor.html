@@ -5,37 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>工作流代码编辑器 - SuperWeb</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <!-- CodeMirror 主题 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/material.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/neo.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/eclipse.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/idea.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #0f0f1a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: rgba(102, 126, 234, 0.3);
+            --accent-color: #667eea;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #e0e0e0;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             height: 100vh;
             overflow: hidden;
+            transition: background 0.3s, color 0.3s;
         }
 
         /* 顶部工具栏 */
         .toolbar {
             height: 56px;
             background: rgba(26, 26, 62, 0.95);
-            border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+            border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
             padding: 0 20px;
             gap: 15px;
             backdrop-filter: blur(10px);
+            transition: border-color 0.3s;
         }
 
         .toolbar-brand {
             font-size: 18px;
             font-weight: 700;
-            color: #667eea;
+            color: var(--accent-color);
             display: flex;
             align-items: center;
             gap: 10px;
@@ -44,7 +61,7 @@
         .toolbar-divider {
             width: 1px;
             height: 32px;
-            background: rgba(102, 126, 234, 0.3);
+            background: var(--border-color);
         }
 
         .toolbar button {
@@ -69,7 +86,7 @@
 
         .toolbar button.secondary {
             background: rgba(102, 126, 234, 0.1);
-            border: 1px solid rgba(102, 126, 234, 0.3);
+            border: 1px solid var(--border-color);
             box-shadow: none;
         }
 
@@ -91,24 +108,26 @@
         .nodes-list-panel {
             width: 320px;
             background: rgba(26, 26, 62, 0.95);
-            border-right: 1px solid rgba(102, 126, 234, 0.3);
+            border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
             backdrop-filter: blur(10px);
+            transition: border-color 0.3s;
         }
 
         .panel-header {
             padding: 15px 20px;
-            border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+            border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: border-color 0.3s;
         }
 
         .panel-title {
             font-size: 14px;
             font-weight: 600;
-            color: #667eea;
+            color: var(--accent-color);
         }
 
         .panel-actions {
@@ -118,8 +137,8 @@
 
         .panel-btn {
             background: rgba(102, 126, 234, 0.2);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            color: #667eea;
+            border: 1px solid var(--border-color);
+            color: var(--accent-color);
             padding: 6px 12px;
             border-radius: 6px;
             font-size: 12px;
@@ -129,7 +148,7 @@
 
         .panel-btn:hover {
             background: rgba(102, 126, 234, 0.3);
-            border-color: #667eea;
+            border-color: var(--accent-color);
         }
 
         .nodes-list {
@@ -653,6 +672,24 @@
         <div style="flex: 1;"></div>
 
         <div style="display: flex; gap: 10px; align-items: center;">
+            <select id="theme-selector" onchange="changeTheme(this.value)" style="
+                padding: 6px 12px;
+                border-radius: 6px;
+                border: 1px solid rgba(102, 126, 234, 0.3);
+                background: rgba(102, 126, 234, 0.1);
+                color: #667eea;
+                font-size: 12px;
+                cursor: pointer;
+                transition: all 0.2s;
+            ">
+                <option value="default">🎨 默认主题</option>
+                <option value="monokai">🌙 Monokai</option>
+                <option value="dracula">🧛 Dracula</option>
+                <option value="material">🎭 Material</option>
+                <option value="neo">💎 Neo</option>
+                <option value="eclipse">☀️ Eclipse (亮色)</option>
+                <option value="idea">💡 Idea (亮色)</option>
+            </select>
             <button class="secondary" onclick="viewLogs()">📋 日志</button>
             <button onclick="saveWorkflow()">💾 保存</button>
             <button class="secondary" onclick="goBack()">← 返回</button>
@@ -694,6 +731,65 @@
         let currentWorkflow = null;
         let nodes = [];
         let selectedNodeId = null;
+        let nextNodeNumber = 1;
+        let codeEditor = null;
+        let parseDebounceTimer = null;
+        let currentTheme = localStorage.getItem('editorTheme') || 'default';
+
+        // ========== 主题切换 ==========
+        function changeTheme(theme) {
+            currentTheme = theme;
+            localStorage.setItem('editorTheme', theme);
+
+            // 切换编辑器主题
+            if (codeEditor) {
+                // 先移除所有主题
+                codeEditor.setOption('theme', 'default');
+
+                // 应用新主题（如果不是 default）
+                if (theme !== 'default') {
+                    codeEditor.setOption('theme', theme);
+                }
+            }
+
+            // 切换界面主题
+            if (theme === 'eclipse' || theme === 'idea' || theme === 'neo') {
+                // 亮色主题
+                document.body.style.background = '#f5f5f5';
+                document.body.style.color = '#333';
+                document.documentElement.style.setProperty('--bg-primary', '#ffffff');
+                document.documentElement.style.setProperty('--bg-secondary', '#e8e8e8');
+                document.documentElement.style.setProperty('--text-primary', '#333333');
+                document.documentElement.style.setProperty('--text-secondary', '#666666');
+                document.documentElement.style.setProperty('--border-color', '#d0d0d0');
+                document.documentElement.style.setProperty('--accent-color', '#667eea');
+            } else {
+                // 暗色主题
+                document.body.style.background = '#1a1a2e';
+                document.body.style.color = '#e0e0e0';
+                document.documentElement.style.setProperty('--bg-primary', '#1a1a2e');
+                document.documentElement.style.setProperty('--bg-secondary', '#0f0f1a');
+                document.documentElement.style.setProperty('--text-primary', '#e0e0e0');
+                document.documentElement.style.setProperty('--text-secondary', '#a0a0a0');
+                document.documentElement.style.setProperty('--border-color', 'rgba(102, 126, 234, 0.3)');
+                document.documentElement.style.setProperty('--accent-color', '#667eea');
+            }
+
+            // 更新主题选择器的值
+            document.getElementById('theme-selector').value = theme;
+        }
+
+        // 页面加载时恢复主题
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('editorTheme') || 'default';
+            const themeSelector = document.getElementById('theme-selector');
+            if (themeSelector) {
+                themeSelector.value = savedTheme;
+                changeTheme(savedTheme);
+            }
+        });
+
+        // ========== next_node 解析 ==========
         let nextNodeNumber = 1;
         let codeEditor = null;
         let parseDebounceTimer = null;
