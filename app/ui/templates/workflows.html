@@ -1083,13 +1083,15 @@ function updatePaginationInfo() {
     const prevBtn = document.getElementById('prev-page-btn');
     const nextBtn = document.getElementById('next-page-btn');
 
-    if (totalItems <= pageSize) {
-        pagination.style.display = 'none';
-        return;
-    }
-
+    // 始终显示分页控件（方便查看数据和切换每页条数）
     pagination.style.display = 'flex';
-    infoText.textContent = `第 ${currentPage} / ${totalPages} 页，共 ${totalItems} 条`;
+
+    // 当数据很少时，禁用翻页按钮但保留显示
+    if (totalItems <= 1) {
+        infoText.textContent = `共 ${totalItems} 条`;
+    } else {
+        infoText.textContent = `第 ${currentPage} / ${totalPages} 页，共 ${totalItems} 条`;
+    }
 
     prevBtn.disabled = currentPage === 1;
     nextBtn.disabled = currentPage === totalPages;
