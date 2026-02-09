@@ -83,37 +83,39 @@ async def create_external_db_engine(db_config):
     """
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-    connection_string = db_config.get_connection_string()
+    # 数据库类型到异步驱动的映射
+    ASYNC_DRIVER_MAP = {
+        "sqlite": ("sqlite", "sqlite+aiosqlite"),
+        "postgresql": ("postgresql", "postgresql+asyncpg"),
+        "mysql": ("mysql+pymysql", "mysql+pymysql"),
+        "mssql": ("mssql+pyodbc", "mssql+pyodbc"),
+    }
 
-    # 转换为异步连接字符串
-    if db_config.db_type == "sqlite":
-        async_conn_str = connection_string.replace("sqlite:///", "sqlite+aiosqlite:///")
-    elif db_config.db_type == "postgresql":
-        async_conn_str = connection_string.replace("postgresql://", "postgresql+asyncpg://")
-    elif db_config.db_type == "mysql":
-        async_conn_str = connection_string  # 已经是 pymysql
-    elif db_config.db_type == "mssql":
-        async_conn_str = connection_string  # 已经是 pymssql
-    else:
+    if db_config.db_type not in ASYNC_DRIVER_MAP:
         raise ValueError(f"不支持的数据库类型: {db_config.db_type}")
 
+    # 获取连接字符串并转换为异步格式
+    connection_string = db_config.get_connection_string()
+    _prefix, async_prefix = ASYNC_DRIVER_MAP[db_config.db_type]
+    async_conn_str = connection_string.replace(_prefix + "://", async_prefix + "://", 1)
+
+    # 构建引擎参数
+    engine_kwargs = {
+        "echo": settings.DEBUG,
+        "future": True
+    }
+
     # SQLite 不支持连接池参数
-    if db_config.db_type == "sqlite":
-        engine = create_async_engine(
-            async_conn_str,
-            echo=settings.DEBUG,
-            future=True
-        )
-    else:
-        engine = create_async_engine(
-            async_conn_str,
-            echo=settings.DEBUG,
-            pool_size=db_config.pool_size,
-            max_overflow=db_config.max_overflow,
-            pool_timeout=db_config.pool_timeout,
-            pool_recycle=db_config.pool_recycle,
-            future=True
-        )
+    if db_config.db_type != "sqlite":
+        engine_kwargs.update({
+            "pool_size": db_config.pool_size,
+            "max_overflow": db_config.max_overflow,
+            "pool_timeout": db_config.pool_timeout,
+            "pool_recycle": db_config.pool_recycle,
+        })
+
+    # 创建引擎
+    engine = create_async_engine(async_conn_str, **engine_kwargs)
 
     # 创建会话工厂
     session_maker = async_sessionmaker(
@@ -157,11 +159,14 @@ async def get_all_active_db_configs():
     from sqlalchemy import select
     from app.models.database_config import DatabaseConfig
 
+    # 使用独立的作用域确保session正确关闭
+    configs = []
     async with async_session_maker() as session:
         result = await session.execute(
             select(DatabaseConfig).where(DatabaseConfig.enabled == True)
         )
         configs = result.scalars().all()
+        # session在这里自动关闭
 
     # 确保所有配置都有引擎和会话工厂
     active_configs = {}

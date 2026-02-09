@@ -1,5 +1,6 @@
 """核心配置"""
 
+from typing import Optional
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
