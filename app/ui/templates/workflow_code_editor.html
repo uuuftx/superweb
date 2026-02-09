@@ -19,12 +19,14 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg-primary: #1a1a2e;
-            --bg-secondary: #0f0f1a;
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-panel: #2d2d2d;
             --text-primary: #e0e0e0;
             --text-secondary: #a0a0a0;
-            --border-color: rgba(102, 126, 234, 0.3);
-            --accent-color: #667eea;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --accent-color: #007acc;
+            --accent-hover: #1e90ff;
         }
 
         body {
@@ -39,7 +41,7 @@
         /* 顶部工具栏 */
         .toolbar {
             height: 56px;
-            background: rgba(26, 26, 62, 0.95);
+            background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
@@ -65,7 +67,7 @@
         }
 
         .toolbar button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--accent-color);
             color: white;
             border: none;
             padding: 8px 16px;
@@ -81,17 +83,18 @@
 
         .toolbar button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+            background: var(--accent-hover);
+            box-shadow: 0 4px 15px rgba(0, 122, 204, 0.4);
         }
 
         .toolbar button.secondary {
-            background: rgba(102, 126, 234, 0.1);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border-color);
             box-shadow: none;
         }
 
         .toolbar button.secondary:hover {
-            background: rgba(102, 126, 234, 0.2);
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .toolbar button.danger {
@@ -107,7 +110,7 @@
         /* 左侧节点列表 */
         .nodes-list-panel {
             width: 320px;
-            background: rgba(26, 26, 62, 0.95);
+            background: var(--bg-secondary);
             border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
@@ -136,9 +139,9 @@
         }
 
         .panel-btn {
-            background: rgba(102, 126, 234, 0.2);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border-color);
-            color: var(--accent-color);
+            color: var(--text-primary);
             padding: 6px 12px;
             border-radius: 6px;
             font-size: 12px;
@@ -147,8 +150,9 @@
         }
 
         .panel-btn:hover {
-            background: rgba(102, 126, 234, 0.3);
+            background: var(--accent-color);
             border-color: var(--accent-color);
+            color: white;
         }
 
         .nodes-list {
@@ -159,8 +163,8 @@
 
         /* 节点卡片 */
         .node-card {
-            background: rgba(31, 31, 64, 0.8);
-            border: 2px solid rgba(102, 126, 234, 0.3);
+            background: var(--bg-panel);
+            border: 2px solid var(--border-color);
             border-radius: 10px;
             padding: 12px 15px;
             margin-bottom: 10px;
@@ -319,12 +323,12 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: rgba(26, 26, 62, 0.95);
+            background: var(--bg-primary);
         }
 
         .editor-header {
             padding: 15px 20px;
-            border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+            border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -759,20 +763,24 @@
                 document.body.style.color = '#333';
                 document.documentElement.style.setProperty('--bg-primary', '#ffffff');
                 document.documentElement.style.setProperty('--bg-secondary', '#e8e8e8');
+                document.documentElement.style.setProperty('--bg-panel', '#f0f0f0');
                 document.documentElement.style.setProperty('--text-primary', '#333333');
                 document.documentElement.style.setProperty('--text-secondary', '#666666');
                 document.documentElement.style.setProperty('--border-color', '#d0d0d0');
-                document.documentElement.style.setProperty('--accent-color', '#667eea');
+                document.documentElement.style.setProperty('--accent-color', '#007acc');
+                document.documentElement.style.setProperty('--accent-hover', '#1e90ff');
             } else {
-                // 暗色主题
-                document.body.style.background = '#1a1a2e';
+                // 暗色主题（深灰色风格）
+                document.body.style.background = '#1e1e1e';
                 document.body.style.color = '#e0e0e0';
-                document.documentElement.style.setProperty('--bg-primary', '#1a1a2e');
-                document.documentElement.style.setProperty('--bg-secondary', '#0f0f1a');
+                document.documentElement.style.setProperty('--bg-primary', '#1e1e1e');
+                document.documentElement.style.setProperty('--bg-secondary', '#252526');
+                document.documentElement.style.setProperty('--bg-panel', '#2d2d2d');
                 document.documentElement.style.setProperty('--text-primary', '#e0e0e0');
                 document.documentElement.style.setProperty('--text-secondary', '#a0a0a0');
-                document.documentElement.style.setProperty('--border-color', 'rgba(102, 126, 234, 0.3)');
-                document.documentElement.style.setProperty('--accent-color', '#667eea');
+                document.documentElement.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.1)');
+                document.documentElement.style.setProperty('--accent-color', '#007acc');
+                document.documentElement.style.setProperty('--accent-hover', '#1e90ff');
             }
 
             // 更新主题选择器的值
