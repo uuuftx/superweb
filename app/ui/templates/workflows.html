@@ -1,80 +1,558 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <h2>工作流管理</h2>
-            <p style="color: #718096; margin-top: 5px;">管理和编辑业务流程工作流</p>
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <button class="btn btn-primary" onclick="showCreateModal()">+ 新建工作流</button>
-        </div>
-    </div>
-</div>
+<style>
+/* 工作流列表高级样式 */
 
-<!-- 推广卡片 -->
-<div class="card" style="
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
-    border: 2px solid #667eea;
+/* 工具栏 */
+.workflow-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.toolbar-left, .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* 搜索框 */
+.search-box {
+    position: relative;
+    width: 300px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 16px 10px 40px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-box::before {
+    content: '🔍';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.5;
+}
+
+/* 过滤器 */
+.filter-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-select:hover {
+    border-color: #667eea;
+}
+
+/* 批量操作栏 */
+.bulk-actions {
+    display: none;
+    padding: 12px 16px;
+    background: #f0f9ff;
+    border: 2px solid #0ea5e9;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    animation: slideDown 0.2s ease-out;
+}
+
+.bulk-actions.active {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.bulk-info {
+    font-weight: 600;
+    color: #0369a1;
+}
+
+.bulk-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+/* 表格样式增强 */
+#workflows-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
     border-radius: 12px;
-">
-    <div style="display: flex; align-items: center; gap: 20px;">
-        <div style="font-size: 56px;">⚡</div>
-        <div style="flex: 1;">
-            <h3 style="margin-bottom: 8px; color: #667eea;">全新专业工作流编辑器</h3>
-            <p style="color: #718096; margin-bottom: 12px; line-height: 1.6;">
-                可视化拖拽组件、无限画布、实时预览、智能连接 - 打造强大的业务流程编排体验
-            </p>
-            <a href="/ui/workflow-editor" style="
-                color: #667eea;
-                text-decoration: none;
-                font-weight: 600;
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-            ">
-                立即体验 <span>→</span>
-            </a>
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+#workflows-table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+#workflows-table th {
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#workflows-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+#workflows-table th.sortable:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+#workflows-table th.sortable::after {
+    content: '↕';
+    position: absolute;
+    right: 8px;
+    opacity: 0.5;
+    font-size: 12px;
+}
+
+#workflows-table th.sortable.asc::after {
+    content: '↑';
+    opacity: 1;
+}
+
+#workflows-table th.sortable.desc::after {
+    content: '↓';
+    opacity: 1;
+}
+
+#workflows-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+#workflows-table tbody tr {
+    transition: all 0.2s;
+}
+
+#workflows-table tbody tr:hover {
+    background: #f7fafc;
+    transform: scale(1.002);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+#workflows-table tbody tr.selected {
+    background: #edf2f7;
+    border-left: 3px solid #667eea;
+}
+
+/* 复选框 */
+.row-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+/* 工作流名称增强 */
+.workflow-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.workflow-name-wrapper {
+    flex: 1;
+}
+
+.workflow-name {
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.workflow-id-badge {
+    font-size: 11px;
+    color: #a0aec0;
+    background: #f7fafc;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.workflow-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+    color: #718096;
+    margin-top: 4px;
+}
+
+.workflow-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 状态徽章增强 */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.status-badge::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-badge.enabled {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.enabled::before {
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.status-badge.disabled {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.status-badge.disabled::before {
+    background: #9ca3af;
+}
+
+/* 操作按钮组 */
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    color: #4a5568;
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.action-btn.edit:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.action-btn.logs:hover {
+    background: #0ea5e9;
+    color: white;
+    border-color: #0ea5e9;
+}
+
+.action-btn.delete:hover {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+.action-btn.toggle {
+    min-width: 60px;
+}
+
+.action-btn.toggle.active {
+    background: #10b981;
+    color: white;
+    border-color: #10b981;
+}
+
+/* 空状态增强 */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-state-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 8px;
+}
+
+.empty-state-desc {
+    font-size: 14px;
+    color: #718096;
+    margin-bottom: 20px;
+}
+
+/* 快捷键提示 */
+.shortcut-hint {
+    font-size: 11px;
+    color: #a0aec0;
+    background: #f7fafc;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+}
+
+/* 统计卡片 */
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: white;
+    padding: 16px;
+    border-radius: 10px;
+    border-left: 4px solid #667eea;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    transition: all 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.stat-card.total { border-left-color: #667eea; }
+.stat-card.enabled { border-left-color: #10b981; }
+.stat-card.disabled { border-left-color: #ef4444; }
+
+.stat-label {
+    font-size: 12px;
+    color: #718096;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+/* 快速编辑下拉 */
+.quick-edit-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    min-width: 180px;
+    z-index: 100;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
+.dropdown-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.dropdown-item:hover {
+    background: #f7fafc;
+}
+
+.dropdown-item.danger {
+    color: #ef4444;
+}
+
+.dropdown-item.danger:hover {
+    background: #fee2e2;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<!-- 统计卡片 -->
+<div class="stats-cards">
+    <div class="stat-card total">
+        <div class="stat-label">总工作流</div>
+        <div class="stat-value" id="stat-total">0</div>
+    </div>
+    <div class="stat-card enabled">
+        <div class="stat-label">已启用</div>
+        <div class="stat-value" id="stat-enabled">0</div>
+    </div>
+    <div class="stat-card disabled">
+        <div class="stat-label">已禁用</div>
+        <div class="stat-value" id="stat-disabled">0</div>
+    </div>
+</div>
+
+<!-- 工具栏 -->
+<div class="card">
+    <div class="workflow-toolbar">
+        <div class="toolbar-left">
+            <button class="btn btn-primary" onclick="showCreateModal()">
+                + 新建工作流
+            </button>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="搜索工作流名称..." oninput="filterWorkflows()">
+            </div>
+        </div>
+        <div class="toolbar-right">
+            <div class="filter-group">
+                <select id="status-filter" class="filter-select" onchange="filterWorkflows()">
+                    <option value="all">所有状态</option>
+                    <option value="enabled">已启用</option>
+                    <option value="disabled">已禁用</option>
+                </select>
+                <select id="sort-select" class="filter-select" onchange="sortWorkflows()">
+                    <option value="updated_desc">最新更新</option>
+                    <option value="name_asc">名称 (A-Z)</option>
+                    <option value="name_desc">名称 (Z-A)</option>
+                    <option value="created_asc">最早创建</option>
+                </select>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="card">
+<!-- 批量操作栏 -->
+<div class="bulk-actions" id="bulk-actions">
+    <div class="bulk-info">
+        已选择 <strong id="selected-count">0</strong> 项
+    </div>
+    <div class="bulk-buttons">
+        <button class="btn btn-sm" onclick="bulkEnable()">批量启用</button>
+        <button class="btn btn-sm" onclick="bulkDisable()">批量禁用</button>
+        <button class="btn btn-sm btn-danger" onclick="bulkDelete()">批量删除</button>
+        <button class="btn btn-sm" onclick="clearSelection()">取消选择</button>
+    </div>
+</div>
+
+<!-- 工作流表格 -->
+<div class="card" style="padding: 0;">
     <table id="workflows-table">
         <thead>
             <tr>
-                <th>工作流名称</th>
+                <th style="width: 40px;">
+                    <input type="checkbox" id="select-all-checkbox" class="row-checkbox" onchange="toggleSelectAll()">
+                </th>
+                <th class="sortable" onclick="sortBy('name')">工作流名称</th>
                 <th>描述</th>
-                <th>状态</th>
-                <th style="width: 200px;">操作</th>
+                <th class="sortable" onclick="sortBy('status')">状态</th>
+                <th style="width: 280px;">操作</th>
             </tr>
         </thead>
-        <tbody>
-            <tr><td colspan="4" style="text-align: center; color: #a0aec0; padding: 40px;">加载中...</td></tr>
+        <tbody id="workflows-tbody">
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: #a0aec0;">
+                    加载中...
+                </td>
+            </tr>
         </tbody>
     </table>
+</div>
 
-    <!-- 分页控件 -->
-    <div id="pagination" class="pagination-container" style="display: none;">
-        <div class="pagination-info">
-            <span id="pagination-info-text">第 1 / 1 页，共 0 条</span>
-        </div>
-        <div class="pagination-controls">
-            <button id="prev-page-btn" class="page-btn" onclick="changePage(-1)" disabled>
-                ← 上一页
-            </button>
-            <div id="page-numbers" class="page-numbers"></div>
-            <button id="next-page-btn" class="page-btn" onclick="changePage(1)">
-                下一页 →
-            </button>
-            <select id="page-size-select" class="page-size-select" onchange="changePageSize()">
-                <option value="10">10 条/页</option>
-                <option value="20">20 条/页</option>
-                <option value="50">50 条/页</option>
-                <option value="100">100 条/页</option>
-            </select>
-        </div>
+<!-- 分页控件 -->
+<div id="pagination" class="pagination-container" style="display: none;">
+    <div class="pagination-info">
+        <span id="pagination-info-text">第 1 / 1 页，共 0 条</span>
+    </div>
+    <div class="pagination-controls">
+        <button id="prev-page-btn" class="page-btn" onclick="changePage(-1)" disabled>
+            ← 上一页
+        </button>
+        <div id="page-numbers" class="page-numbers"></div>
+        <button id="next-page-btn" class="page-btn" onclick="changePage(1)">
+            下一页→
+        </button>
+        <select id="page-size-select" class="page-size-select" onchange="changePageSize()">
+            <option value="10">10条/页</option>
+            <option value="20" selected>20条/页</option>
+            <option value="50">50条/页</option>
+            <option value="100">100条/页</option>
+        </select>
     </div>
 </div>
 
@@ -118,130 +596,633 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
+<script>
+let workflows = [];
+let filteredWorkflows = [];
+let currentPage = 1;
+let pageSize = 20;
+let totalPages = 1;
+let totalItems = 0;
+let selectedIds = new Set();
+let currentSort = { field: 'updated', order: 'desc' };
+
+// 加载工作流
+async function loadWorkflows() {
+    try {
+        const data = await api('/api/admin/workflows');
+        workflows = data.items;
+        applyFiltersAndSort();
+        updateStats();
+    } catch (error) {
+        console.error('加载失败:', error);
+        showToast('加载失败', '无法加载工作流列表', 'error');
+    }
+}
+
+// 更新统计
+function updateStats() {
+    const total = workflows.length;
+    const enabled = workflows.filter(w => w.enabled).length;
+    const disabled = total - enabled;
+
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-enabled').textContent = enabled;
+    document.getElementById('stat-disabled').textContent = disabled;
+}
+
+// 应用过滤和排序
+function applyFiltersAndSort() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const statusFilter = document.getElementById('status-filter').value;
+
+    // 过滤
+    filteredWorkflows = workflows.filter(w => {
+        const matchesSearch = w.name.toLowerCase().includes(searchTerm) ||
+                            (w.description && w.description.toLowerCase().includes(searchTerm));
+        const matchesStatus = statusFilter === 'all' ||
+                              (statusFilter === 'enabled' && w.enabled) ||
+                              (statusFilter === 'disabled' && !w.enabled);
+        return matchesSearch && matchesStatus;
+    });
+
+    // 排序
+    filteredWorkflows.sort((a, b) => {
+        const field = currentSort.field;
+        const order = currentSort.order === 'asc' ? 1 : -1;
+
+        if (field === 'name') {
+            return a.name.localeCompare(b.name) * order;
+        } else if (field === 'status') {
+            return (a.enabled === b.enabled ? 0 : (a.enabled ? 1 : -1)) * order;
+        } else {
+            // 默认按ID排序（作为创建时间的代理）
+            return (b.id - a.id) * order;
+        }
+    });
+
+    totalItems = filteredWorkflows.length;
+    totalPages = Math.ceil(totalItems / pageSize) || 1;
+    currentPage = 1;
+
+    renderWorkflows();
+    updatePaginationInfo();
+}
+
+// 过滤工作流
+function filterWorkflows() {
+    applyFiltersAndSort();
+}
+
+// 排序工作流
+function sortWorkflows() {
+    const select = document.getElementById('sort-select');
+    const value = select.value;
+    const [field, order] = value.split('_');
+    currentSort = { field, order };
+    applyFiltersAndSort();
+}
+
+// 按列排序
+function sortBy(field) {
+    if (currentSort.field === field) {
+        currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.field = field;
+        currentSort.order = 'asc';
+    }
+
+    // 更新下拉框
+    const select = document.getElementById('sort-select');
+    // 简化处理，不精确匹配
+    select.value = field + '_' + currentSort.order;
+
+    applyFiltersAndSort();
+}
+
+// 渲染工作流
+function renderWorkflows() {
+    const tbody = document.getElementById('workflows-tbody');
+
+    if (filteredWorkflows.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div class="empty-state-title">暂无工作流</div>
+                        <div class="empty-state-desc">
+                            ${workflows.length === 0 ?
+                                '还没有创建任何工作流。点击"新建工作流"开始创建吧！' :
+                                '没有找到匹配的工作流，请尝试其他搜索条件。'}
+                        </div>
+                        ${workflows.length === 0 ?
+                            '<a href="/ui/workflow-editor" class="btn btn-primary">创建第一个工作流</a>' :
+                            '<button class="btn" onclick="clearFilters()">清除筛选</button>'}
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // 分页
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalItems);
+    const pageWorkflows = filteredWorkflows.slice(startIndex, endIndex);
+
+    tbody.innerHTML = pageWorkflows.map(w => `
+        <tr class="${selectedIds.has(w.id) ? 'selected' : ''}" data-id="${w.id}">
+            <td>
+                <input type="checkbox" class="row-checkbox workflow-checkbox"
+                       data-id="${w.id}"
+                       ${selectedIds.has(w.id) ? 'checked' : ''}
+                       onchange="toggleSelect(${w.id})">
+            </td>
+            <td>
+                <div class="workflow-name-cell">
+                    <div class="workflow-name-wrapper">
+                        <div class="workflow-name">${w.name}</div>
+                        <div class="workflow-id-badge">ID: ${w.id}</div>
+                        <div class="workflow-meta">
+                            <span class="workflow-meta-item">📝 节点: ${w.node_count || '-'}</span>
+                        </div>
+                    </div>
+                    <button onclick="copyWorkflowName('${w.name}')"
+                            class="copy-btn"
+                            title="复制流程名"
+                            data-name="${w.name}">
+                        📋
+                    </button>
+                </div>
+            </td>
+            <td style="color: #718096; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${w.description || '-'}
+            </td>
+            <td>
+                <span class="status-badge ${w.enabled ? 'enabled' : 'disabled'}">
+                    ${w.enabled ? '✓ 已启用' : '✗ 已禁用'}
+                </span>
+            </td>
+            <td>
+                <div class="action-buttons">
+                    <a href="/ui/workflow-editor?workflow=${w.id}"
+                       class="action-btn edit"
+                       title="编辑工作流">
+                        ⚡ 编辑
+                    </a>
+                    <a href="/ui/workflow-logs?workflow_id=${w.id}"
+                       class="action-btn logs"
+                       title="查看日志">
+                        📋 日志
+                    </a>
+                    <button class="action-btn toggle ${w.enabled ? 'active' : ''}"
+                            onclick="toggleWorkflow(${w.id}, ${!w.enabled})"
+                            title="${w.enabled ? '禁用' : '启用'}">
+                        ${w.enabled ? '禁用' : '启用'}
+                    </button>
+                    <button class="action-btn delete"
+                            onclick="deleteWorkflow(${w.id})"
+                            title="删除">
+                        🗑️
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+
+    // 更新全选复选框状态
+    updateSelectAllCheckbox();
+}
+
+// 切换选择
+function toggleSelect(id) {
+    if (selectedIds.has(id)) {
+        selectedIds.delete(id);
+    } else {
+        selectedIds.add(id);
+    }
+    updateBulkActions();
+    renderWorkflows(); // 重新渲染以更新选中状态
+}
+
+// 全选/取消全选
+function toggleSelectAll() {
+    const checkbox = document.getElementById('select-all-checkbox');
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalItems);
+    const pageWorkflows = filteredWorkflows.slice(startIndex, endIndex);
+
+    if (checkbox.checked) {
+        pageWorkflows.forEach(w => selectedIds.add(w.id));
+    } else {
+        pageWorkflows.forEach(w => selectedIds.delete(w.id));
+    }
+
+    updateBulkActions();
+    renderWorkflows();
+}
+
+// 更新全选复选框状态
+function updateSelectAllCheckbox() {
+    const checkbox = document.getElementById('select-all-checkbox');
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalItems);
+    const pageWorkflows = filteredWorkflows.slice(startIndex, endIndex);
+
+    if (pageWorkflows.length === 0) {
+        checkbox.checked = false;
+        checkbox.indeterminate = false;
+        return;
+    }
+
+    const allSelected = pageWorkflows.every(w => selectedIds.has(w.id));
+    const someSelected = pageWorkflows.some(w => selectedIds.has(w.id));
+
+    checkbox.checked = allSelected;
+    checkbox.indeterminate = !allSelected && someSelected;
+}
+
+// 更新批量操作栏
+function updateBulkActions() {
+    const bulkActions = document.getElementById('bulk-actions');
+    const selectedCount = document.getElementById('selected-count');
+
+    selectedCount.textContent = selectedIds.size;
+
+    if (selectedIds.size > 0) {
+        bulkActions.classList.add('active');
+    } else {
+        bulkActions.classList.remove('active');
+    }
+}
+
+// 清除选择
+function clearSelection() {
+    selectedIds.clear();
+    updateBulkActions();
+    renderWorkflows();
+}
+
+// 批量启用
+async function bulkEnable() {
+    const ids = Array.from(selectedIds);
+    try {
+        for (const id of ids) {
+            await api(`/api/admin/workflows/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ enabled: true })
+            });
+        }
+        showToast('成功', `已启用 ${ids.length} 个工作流`, 'success');
+        clearSelection();
+        await loadWorkflows();
+    } catch (error) {
+        showToast('失败', error.message, 'error');
+    }
+}
+
+// 批量禁用
+async function bulkDisable() {
+    const ids = Array.from(selectedIds);
+    try {
+        for (const id of ids) {
+            await api(`/api/admin/workflows/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ enabled: false })
+            });
+        }
+        showToast('成功', `已禁用 ${ids.length} 个工作流`, 'success');
+        clearSelection();
+        await loadWorkflows();
+    } catch (error) {
+        showToast('失败', error.message, 'error');
+    }
+}
+
+// 批量删除
+async function bulkDelete() {
+    const ids = Array.from(selectedIds);
+
+    const confirmed = await showConfirm(
+        '确认批量删除',
+        `确定要删除选中的 ${ids.length} 个工作流吗？此操作不可恢复！`,
+        {
+            icon: '🗑️',
+            confirmText: '确认删除',
+            cancelText: '取消'
+        }
+    );
+
+    if (!confirmed) return;
+
+    try {
+        for (const id of ids) {
+            await api(`/api/admin/workflows/${id}`, {
+                method: 'DELETE'
+            });
+        }
+        showToast('成功', `已删除 ${ids.length} 个工作流`, 'success');
+        clearSelection();
+        await loadWorkflows();
+    } catch (error) {
+        showToast('失败', error.message, 'error');
+    }
+}
+
+// 切换工作流状态
+async function toggleWorkflow(id, enabled) {
+    try {
+        await api(`/api/admin/workflows/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ enabled })
+        });
+        showToast('成功', `工作流已${enabled ? '启用' : '禁用'}`, 'success');
+        await loadWorkflows();
+    } catch (error) {
+        showToast('失败', error.message, 'error');
+    }
+}
+
+// 清除筛选
+function clearFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('status-filter').value = 'all';
+    applyFiltersAndSort();
+}
+
+// 更新分页信息
+function updatePaginationInfo() {
+    const pagination = document.getElementById('pagination');
+    const infoText = document.getElementById('pagination-info-text');
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+
+    if (totalItems <= pageSize) {
+        pagination.style.display = 'none';
+        return;
+    }
+
+    pagination.style.display = 'flex';
+    infoText.textContent = `第 ${currentPage} / ${totalPages} 页，共 ${totalItems} 条`;
+
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+
+    // 生成页码
+    const pageNumbers = document.getElementById('page-numbers');
+    pageNumbers.innerHTML = '';
+
+    const maxPages = 7;
+
+    if (totalPages <= maxPages) {
+        for (let i = 1; i <= totalPages; i++) {
+            pageNumbers.appendChild(createPageButton(i));
+        }
+    } else {
+        if (currentPage <= 4) {
+            for (let i = 1; i <= 5; i++) {
+                pageNumbers.appendChild(createPageButton(i));
+            }
+            pageNumbers.appendChild(createEllipsis());
+            pageNumbers.appendChild(createPageButton(totalPages));
+        } else if (currentPage >= totalPages - 3) {
+            pageNumbers.appendChild(createPageButton(1));
+            pageNumbers.appendChild(createEllipsis());
+            for (let i = totalPages - 4; i <= totalPages; i++) {
+                pageNumbers.appendChild(createPageButton(i));
+            }
+        } else {
+            pageNumbers.appendChild(createPageButton(1));
+            pageNumbers.appendChild(createEllipsis());
+            for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                pageNumbers.appendChild(createPageButton(i));
+            }
+            pageNumbers.appendChild(createEllipsis());
+            pageNumbers.appendChild(createPageButton(totalPages));
+        }
+    }
+}
+
+function createPageButton(page) {
+    const btn = document.createElement('button');
+    btn.className = 'page-number' + (page === currentPage ? ' active' : '');
+    btn.textContent = page;
+    btn.onclick = () => goToPage(page);
+    return btn;
+}
+
+function createEllipsis() {
+    const span = document.createElement('span');
+    span.textContent = '...';
+    span.style.cssText = 'padding: 0 4px; color: #a0aec0;';
+    return span;
+}
+
+function changePage(delta) {
+    const newPage = currentPage + delta;
+    if (newPage >= 1 && newPage <= totalPages) {
+        goToPage(newPage);
+    }
+}
+
+function goToPage(page) {
+    currentPage = page;
+    renderWorkflows();
+    updatePaginationInfo();
+    document.getElementById('workflows-table').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function changePageSize() {
+    const select = document.getElementById('page-size-select');
+    pageSize = parseInt(select.value);
+    totalPages = Math.ceil(totalItems / pageSize) || 1;
+    currentPage = 1;
+    renderWorkflows();
+    updatePaginationInfo();
+}
+
+// 显示创建模态框
+function showCreateModal() {
+    document.getElementById('workflow-form').reset();
+    document.getElementById('workflow-modal').classList.add('active');
+}
+
+// 关闭模态框
+function closeModal() {
+    document.getElementById('workflow-modal').classList.remove('active');
+}
+
+// 表单提交
+document.getElementById('workflow-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        name: document.getElementById('workflow-name').value,
+        description: document.getElementById('workflow-description').value,
+    };
+
+    try {
+        const result = await api('/api/admin/workflows', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        closeModal();
+        showToast('创建成功', `工作流 "${data.name}" 已创建`, 'success');
+        await loadWorkflows();
+        window.location.href = `/ui/workflow-editor?workflow=${result.id}`;
+    } catch (error) {
+        showToast('创建失败', error.message, 'error');
+    }
+});
+
+// 删除工作流
+async function deleteWorkflow(id) {
+    const workflow = workflows.find(w => w.id === id);
+    const confirmed = await showConfirm(
+        '确认删除工作流',
+        `确定要删除工作流 "${workflow?.name}" 吗？此操作不可恢复！`,
+        {
+            icon: '🗑️',
+            confirmText: '确认删除',
+            cancelText: '取消'
+        }
+    );
+
+    if (!confirmed) return;
+
+    try {
+        await api(`/api/admin/workflows/${id}`, {
+            method: 'DELETE'
+        });
+        showToast('删除成功', `工作流 "${workflow?.name}" 已删除`, 'success');
+        await loadWorkflows();
+    } catch (error) {
+        showToast('删除失败', error.message, 'error');
+    }
+}
+
+// 复制工作流名称
+async function copyWorkflowName(name) {
+    try {
+        await navigator.clipboard.writeText(name);
+        showToast('复制成功', `流程名 "${name}" 已复制到剪贴板`, 'success', 2000);
+
+        const btn = document.querySelector(`.copy-btn[data-name="${name}"]`);
+        if (btn) {
+            const originalText = btn.textContent;
+            btn.textContent = '✅';
+            btn.style.background = '#10b981';
+            btn.style.color = 'white';
+            btn.style.transform = 'scale(1.2)';
+
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = '';
+                btn.style.color = '';
+                btn.style.transform = '';
+            }, 1000);
+        }
+    } catch (error) {
+        const textArea = document.createElement('textarea');
+        textArea.value = name;
+        textArea.style.cssText = 'position: fixed; top: -9999px; left: -9999px;';
+        document.body.appendChild(textArea);
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            showToast('复制成功', `流程名 "${name}" 已复制`, 'success', 2000);
+        } catch (err) {
+            showToast('复制失败', '无法复制到剪贴板', 'error', 3000);
+        }
+
+        document.body.removeChild(textArea);
+    }
+}
+
+// 确认对话框
+function showConfirm(title, message, options = {}) {
+    const dialog = document.getElementById('confirm-dialog');
+    const titleEl = document.getElementById('confirm-title');
+    const messageEl = document.getElementById('confirm-message');
+    const cancelBtn = document.getElementById('confirm-cancel');
+    const okBtn = document.getElementById('confirm-ok');
+
+    titleEl.textContent = title || '确认操作';
+    messageEl.textContent = message || '确定要执行此操作吗？';
+
+    cancelBtn.textContent = options.cancelText || '取消';
+    okBtn.textContent = options.confirmText || '确认';
+
+    const iconEl = dialog.querySelector('.confirm-icon');
+    iconEl.textContent = options.icon || '⚠️';
+
+    dialog.classList.add('active');
+
+    return new Promise((resolve) => {
+        const cleanup = () => {
+            dialog.classList.remove('active');
+            cancelBtn.onclick = null;
+            okBtn.onclick = null;
+        };
+
+        cancelBtn.onclick = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        okBtn.onclick = () => {
+            cleanup();
+            resolve(true);
+        };
+
+        dialog.onclick = (e) => {
+            if (e.target === dialog) {
+                cleanup();
+                resolve(false);
+            }
+        };
+    });
+}
+
+// 键盘快捷键
+document.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd + K: 聚焦搜索框
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('search-input').focus();
+    }
+    // ESC: 清除搜索
+    if (e.key === 'Escape') {
+        clearFilters();
+    }
+});
+
+// 加载数据
+loadWorkflows();
+</script>
+
+<!-- 复制按钮样式 -->
 <style>
-.confirm-dialog {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 10000;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.2s ease-out;
-}
-.confirm-dialog.active { display: flex; }
-.confirm-box {
-    background: white;
-    border-radius: 16px;
-    padding: 0;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    animation: slideUp 0.3s ease-out;
-}
-.confirm-header {
-    padding: 24px 28px 20px;
-    text-align: center;
-}
-.confirm-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-}
-.confirm-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #1a202c;
-    margin-bottom: 8px;
-}
-.confirm-message {
-    font-size: 14px;
-    color: #718096;
-    line-height: 1.6;
-}
-.confirm-footer {
-    display: flex;
-    gap: 12px;
-    padding: 20px 28px;
-    border-top: 1px solid #f0f0f0;
-    background: #fafafa;
-    border-radius: 0 0 16px 16px;
-}
-.confirm-btn {
-    flex: 1;
-    padding: 12px 20px;
+.copy-btn {
+    background: transparent;
     border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 500;
     cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 14px;
     transition: all 0.2s;
+    opacity: 0.6;
 }
-.confirm-btn-cancel {
-    background: #f7fafc;
-    color: #4a5568;
-    border: 1.5px solid #e2e8f0;
+.copy-btn:hover {
+    opacity: 1;
+    background: #f0f0f0;
+    transform: scale(1.1);
 }
-.confirm-btn-cancel:hover {
-    background: #e2e8f0;
-}
-.confirm-btn-confirm {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
-.confirm-btn-confirm:hover {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
-    transform: translateY(-1px);
-}
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
+</style>
 
-/* 优化表格行高 */
-#workflows-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-#workflows-table th,
-#workflows-table td {
-    padding: 12px 16px;
-    text-align: left;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-#workflows-table tbody tr {
-    transition: background-color 0.2s;
-}
-
-#workflows-table tbody tr:hover {
-    background-color: #f7fafc;
-}
-
-#workflows-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* 分页控件样式 */
+<!-- 之前的分页样式 -->
+<style>
 .pagination-container {
     display: flex;
     justify-content: space-between;
@@ -332,448 +1313,5 @@
 .page-size-select:hover {
     border-color: #667eea;
 }
-
-.page-size-select:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
 </style>
-<script>
-let workflows = [];
-let currentPage = 1;
-let pageSize = 20;
-let totalPages = 1;
-let totalItems = 0;
-
-// Toast 通知函数
-function showToast(title, message, type = 'info', duration = 3000) {
-    // 创建 toast 容器（如果不存在）
-    let container = document.getElementById('toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toast-container';
-        container.style.cssText = `
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        `;
-        document.body.appendChild(container);
-    }
-
-    const icons = {
-        success: '✅',
-        error: '❌',
-        info: 'ℹ️'
-    };
-
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-        min-width: 300px;
-        background: white;
-        border-radius: 12px;
-        padding: 16px 20px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        animation: slideInRight 0.3s ease-out;
-    `;
-    toast.style.borderLeft = `4px solid ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'}`;
-
-    toast.innerHTML = `
-        <div style="font-size: 24px;">${icons[type]}</div>
-        <div style="flex: 1;">
-            <div style="font-weight: 600; font-size: 14px; color: #1a202c;">${title}</div>
-            ${message ? `<div style="font-size: 13px; color: #718096;">${message}</div>` : ''}
-        </div>
-        <button onclick="this.parentElement.remove()" style="
-            background: none;
-            border: none;
-            font-size: 18px;
-            color: #a0aec0;
-            cursor: pointer;
-            padding: 0;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-        ">×</button>
-    `;
-
-    container.appendChild(toast);
-
-    if (duration > 0) {
-        setTimeout(() => {
-            toast.style.animation = 'fadeOut 0.3s ease-out forwards';
-            setTimeout(() => toast.remove(), 300);
-        }, duration);
-    }
-}
-
-// 添加动画样式
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInRight {
-        from { transform: translateX(400px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
-    }
-`;
-document.head.appendChild(style);
-
-// 确认对话框函数
-function showConfirm(title, message, options = {}) {
-    const dialog = document.getElementById('confirm-dialog');
-    const titleEl = document.getElementById('confirm-title');
-    const messageEl = document.getElementById('confirm-message');
-    const cancelBtn = document.getElementById('confirm-cancel');
-    const okBtn = document.getElementById('confirm-ok');
-
-    // 设置内容
-    titleEl.textContent = title || '确认操作';
-    messageEl.textContent = message || '确定要执行此操作吗？';
-
-    // 设置按钮文本
-    cancelBtn.textContent = options.cancelText || '取消';
-    okBtn.textContent = options.confirmText || '确认';
-
-    // 设置图标
-    const iconEl = dialog.querySelector('.confirm-icon');
-    iconEl.textContent = options.icon || '⚠️';
-
-    // 显示对话框
-    dialog.classList.add('active');
-
-    // 返回 Promise
-    return new Promise((resolve) => {
-        const cleanup = () => {
-            dialog.classList.remove('active');
-            cancelBtn.onclick = null;
-            okBtn.onclick = null;
-        };
-
-        cancelBtn.onclick = () => {
-            cleanup();
-            resolve(false);
-        };
-
-        okBtn.onclick = () => {
-            cleanup();
-            resolve(true);
-        };
-
-        // 点击背景关闭
-        dialog.onclick = (e) => {
-            if (e.target === dialog) {
-                cleanup();
-                resolve(false);
-            }
-        };
-    });
-}
-
-async function loadWorkflows() {
-    try {
-        const data = await api('/api/admin/workflows');
-        workflows = data.items;
-        totalItems = workflows.length;
-        totalPages = Math.ceil(totalItems / pageSize) || 1;
-
-        // 重置到第一页
-        currentPage = 1;
-        renderWorkflows();
-        updatePaginationInfo();
-    } catch (error) {
-        console.error('加载失败:', error);
-    }
-}
-
-function renderWorkflows() {
-    const tbody = document.querySelector('#workflows-table tbody');
-    if (workflows.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="4" style="text-align: center; padding: 40px; color: #a0aec0;">
-                    <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
-                    <div style="font-size: 14px; margin-bottom: 8px;">暂无工作流</div>
-                    <div style="font-size: 12px;">
-                        <a href="/ui/workflow-editor" style="color: #667eea;">打开专业编辑器</a> 创建你的第一个工作流
-                    </div>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    // 计算当前页的数据
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = Math.min(startIndex + pageSize, totalItems);
-    const pageWorkflows = workflows.slice(startIndex, endIndex);
-
-    tbody.innerHTML = pageWorkflows.map(w => `
-        <tr>
-            <td>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <strong style="color: #2d3748;">${w.name}</strong>
-                    <button onclick="copyWorkflowName('${w.name}')"
-                            class="copy-btn"
-                            title="复制流程名"
-                            data-name="${w.name}">
-                        📋
-                    </button>
-                </div>
-            </td>
-            <td style="color: #718096;">${w.description || '-'}</td>
-            <td>
-                <span class="badge ${w.enabled ? 'badge-success' : 'badge-danger'}">
-                    ${w.enabled ? '启用' : '禁用'}
-                </span>
-            </td>
-            <td>
-                <a href="/ui/workflow-editor?workflow=${w.id}" class="btn btn-sm btn-primary" style="text-decoration: none;" title="编辑工作流">
-                    ⚡ 编辑
-                </a>
-                <a href="/ui/workflow-logs?workflow_id=${w.id}" class="btn btn-sm" style="text-decoration: none; background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568;">
-                    📋 日志
-                </a>
-                <button class="btn btn-sm btn-danger" onclick="deleteWorkflow(${w.id})">删除</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-// 更新分页信息
-function updatePaginationInfo() {
-    const pagination = document.getElementById('pagination');
-    const infoText = document.getElementById('pagination-info-text');
-    const prevBtn = document.getElementById('prev-page-btn');
-    const nextBtn = document.getElementById('next-page-btn');
-    const pageNumbers = document.getElementById('page-numbers');
-
-    // 如果没有数据或只有一页，隐藏分页
-    if (totalItems <= pageSize) {
-        pagination.style.display = 'none';
-        return;
-    }
-
-    pagination.style.display = 'flex';
-
-    // 更新信息文本
-    infoText.textContent = `第 ${currentPage} / ${totalPages} 页，共 ${totalItems} 条`;
-
-    // 更新按钮状态
-    prevBtn.disabled = currentPage === 1;
-    nextBtn.disabled = currentPage === totalPages;
-
-    // 生成页码
-    pageNumbers.innerHTML = '';
-    const maxPages = 7; // 最多显示7个页码
-
-    if (totalPages <= maxPages) {
-        // 总页数少，显示所有页码
-        for (let i = 1; i <= totalPages; i++) {
-            pageNumbers.appendChild(createPageButton(i));
-        }
-    } else {
-        // 总页数多，简化显示
-        if (currentPage <= 4) {
-            for (let i = 1; i <= 5; i++) {
-                pageNumbers.appendChild(createPageButton(i));
-            }
-            pageNumbers.appendChild(createEllipsis());
-            pageNumbers.appendChild(createPageButton(totalPages));
-        } else if (currentPage >= totalPages - 3) {
-            pageNumbers.appendChild(createPageButton(1));
-            pageNumbers.appendChild(createEllipsis());
-            for (let i = totalPages - 4; i <= totalPages; i++) {
-                pageNumbers.appendChild(createPageButton(i));
-            }
-        } else {
-            pageNumbers.appendChild(createPageButton(1));
-            pageNumbers.appendChild(createEllipsis());
-            for (let i = currentPage - 1; i <= currentPage + 1; i++) {
-                pageNumbers.appendChild(createPageButton(i));
-            }
-            pageNumbers.appendChild(createEllipsis());
-            pageNumbers.appendChild(createPageButton(totalPages));
-        }
-    }
-}
-
-function createPageButton(page) {
-    const btn = document.createElement('button');
-    btn.className = 'page-number' + (page === currentPage ? ' active' : '');
-    btn.textContent = page;
-    btn.onclick = () => goToPage(page);
-    return btn;
-}
-
-function createEllipsis() {
-    const span = document.createElement('span');
-    span.textContent = '...';
-    span.style.cssText = 'padding: 0 4px; color: #a0aec0;';
-    return span;
-}
-
-function changePage(delta) {
-    const newPage = currentPage + delta;
-    if (newPage >= 1 && newPage <= totalPages) {
-        goToPage(newPage);
-    }
-}
-
-function goToPage(page) {
-    currentPage = page;
-    renderWorkflows();
-    updatePaginationInfo();
-
-    // 滚动到表格顶部
-    document.getElementById('workflows-table').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function changePageSize() {
-    const select = document.getElementById('page-size-select');
-    pageSize = parseInt(select.value);
-    totalPages = Math.ceil(totalItems / pageSize) || 1;
-    currentPage = 1;
-    renderWorkflows();
-    updatePaginationInfo();
-}
-
-function showCreateModal() {
-    document.getElementById('workflow-form').reset();
-    document.getElementById('workflow-modal').classList.add('active');
-}
-
-function closeModal() {
-    document.getElementById('workflow-modal').classList.remove('active');
-}
-
-document.getElementById('workflow-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const data = {
-        name: document.getElementById('workflow-name').value,
-        description: document.getElementById('workflow-description').value,
-    };
-
-    try {
-        const result = await api('/api/admin/workflows', {
-            method: 'POST',
-            body: JSON.stringify(data)
-        });
-        closeModal();
-        await loadWorkflows();
-        // 跳转到编辑器
-        window.location.href = `/ui/workflow-editor?workflow=${result.id}`;
-    } catch (error) {
-        alert('创建失败: ' + error.message);
-    }
-});
-
-async function deleteWorkflow(id) {
-    const workflow = workflows.find(w => w.id === id);
-    const confirmed = await showConfirm(
-        '确认删除工作流',
-        `确定要删除工作流 "${workflow?.name}" 吗？此操作不可恢复！`,
-        {
-            icon: '🗑️',
-            confirmText: '确认删除',
-            cancelText: '取消'
-        }
-    );
-
-    if (!confirmed) return;
-
-    try {
-        await api(`/api/admin/workflows/${id}`, {
-            method: 'DELETE'
-        });
-        showToast('删除成功', `工作流 "${workflow?.name}" 已删除`, 'success');
-        loadWorkflows();
-    } catch (error) {
-        showToast('删除失败', error.message, 'error');
-    }
-}
-
-// 复制工作流名称到剪贴板
-async function copyWorkflowName(name) {
-    try {
-        await navigator.clipboard.writeText(name);
-
-        // 显示复制成功提示
-        showToast(
-            '复制成功',
-            `流程名 "${name}" 已复制到剪贴板`,
-            'success',
-            2000
-        );
-
-        // 添加临时高亮效果
-        const btn = document.querySelector(`.copy-btn[data-name="${name}"]`);
-        if (btn) {
-            const originalText = btn.textContent;
-            btn.textContent = '✅';
-            btn.style.background = '#10b981';
-            btn.style.color = 'white';
-            btn.style.transform = 'scale(1.2)';
-
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.style.background = '';
-                btn.style.color = '';
-                btn.style.transform = '';
-            }, 1000);
-        }
-    } catch (error) {
-        // 降级方案：使用传统方法复制
-        const textArea = document.createElement('textarea');
-        textArea.value = name;
-        textArea.style.cssText = 'position: fixed; top: -9999px; left: -9999px;';
-        document.body.appendChild(textArea);
-        textArea.select();
-
-        try {
-            document.execCommand('copy');
-            showToast('复制成功', `流程名 "${name}" 已复制`, 'success', 2000);
-        } catch (err) {
-            showToast('复制失败', '无法复制到剪贴板', 'error', 3000);
-        }
-
-        document.body.removeChild(textArea);
-    }
-}
-
-// 添加复制按钮样式
-const copyBtnStyle = document.createElement('style');
-copyBtnStyle.textContent = `
-    .copy-btn {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 14px;
-        transition: all 0.2s;
-        opacity: 0.6;
-    }
-    .copy-btn:hover {
-        opacity: 1;
-        background: #f0f0f0;
-        transform: scale(1.1);
-    }
-`;
-document.head.appendChild(copyBtnStyle);
-
-loadWorkflows();
-</script>
 {% endblock %}
