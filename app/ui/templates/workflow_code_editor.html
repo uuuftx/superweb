@@ -695,6 +695,7 @@
                 <option value="idea">💡 Idea (亮色)</option>
             </select>
             <button class="secondary" onclick="viewLogs()">📋 日志</button>
+            <button class="secondary" onclick="exportWorkflow()">📤 导出</button>
             <button onclick="saveWorkflow()">💾 保存</button>
             <button class="secondary" onclick="goBack()">← 返回</button>
         </div>
@@ -1254,6 +1255,71 @@ next_node = ${nodeNumber + 1}`
             } catch (error) {
                 showToast('保存失败', error.message, 'error');
             }
+        }
+
+        // ========== 导出工作流 ==========
+        async function exportWorkflow() {
+            if (!currentWorkflow) {
+                showToast('错误', '请先选择工作流', 'error');
+                return;
+            }
+
+            // 确保代码中的next_node与配置一致
+            nodes.forEach(node => {
+                if (codeEditor && selectedNodeId === node.id) {
+                    node.code = codeEditor.getValue();
+                }
+
+                // 如果是动态next_node，不修改代码
+                // 如果是静态next_node，更新代码中的值
+                if (!node.next_node_dynamic && node.next_node !== null) {
+                    // 更新代码中的next_node
+                    node.code = node.code.replace(/next_node\s*=\s*\d+/g, `next_node = ${node.next_node}`);
+                }
+            });
+
+            // 构建完整的导出数据
+            const exportData = {
+                version: "1.0",
+                workflow: {
+                    name: currentWorkflow.name,
+                    description: currentWorkflow.description || "",
+                    enabled: currentWorkflow.enabled,
+                    logging_enabled: currentWorkflow.logging_enabled || false
+                },
+                nodes: nodes.map(n => ({
+                    node_id: n.id,
+                    node_type: 'python',
+                    name: n.name,
+                    position_x: n.node_number * 200,
+                    position_y: 0,
+                    config: {
+                        code: n.code,
+                        description: n.description || ""
+                    }
+                })),
+                connections: nodes.filter(n => n.next_node > 0).map(n => ({
+                    source: n.id,
+                    target: n.next_node === 0 ? 'end' : `node_${n.next_node}`
+                })),
+                exported_at: new Date().toISOString()
+            };
+
+            // 转换为 JSON 字符串
+            const jsonStr = JSON.stringify(exportData, null, 2);
+
+            // 创建下载链接
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentWorkflow.name}_workflow.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('导出成功', `工作流 "${currentWorkflow.name}" 已导出`, 'success');
         }
 
         // ========== 辅助功能 ==========
